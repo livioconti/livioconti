@@ -1,0 +1,565 @@
+{
+ "template": "RiconoscimentoCFU_IngGestionale_-_All_V92quater_29102024_VGD",
+ "nota": "Celle che Claude può scrivere (template VGD V92quater; le copie del template mantengono gli stessi sheetId). Tutto il resto è in sola lettura per Claude.",
+ "riconoscimento": [
+  {
+   "nome": "trash",
+   "range": "Trash!A1:I1000",
+   "tipo": "righe9",
+   "sfondo": true
+  },
+  {
+   "nome": "trashAzzurra",
+   "range": "Trash_tabella_azzurra!A1:I1000",
+   "tipo": "righe9",
+   "sfondo": true
+  },
+  {
+   "nome": "esami",
+   "range": "Input!A42:I1003",
+   "tipo": "righe9"
+  },
+  {
+   "nome": "esamiCfuVO",
+   "range": "Input!H42:H1003",
+   "tipo": "sfondoVO",
+   "solo_sfondo": "#E06666"
+  },
+  {
+   "nome": "matrice",
+   "range": "Input!Q42:CB1003",
+   "tipo": "cfu",
+   "escludi_colonne": [
+    "BC",
+    "BD",
+    "BE",
+    "BF",
+    "CB"
+   ]
+  },
+  {
+   "nome": "cv",
+   "range": "Input!Q41:CB41",
+   "tipo": "cfu",
+   "escludi_colonne": [
+    "BC",
+    "BD",
+    "BE",
+    "BF",
+    "CB"
+   ]
+  },
+  {
+   "nome": "cfuPerCV",
+   "range": "CFU_per_CV!A2:I1000",
+   "tipo": "righe9"
+  },
+  {
+   "nome": "affidabilita",
+   "range": "Affidabilita_CFU!A2:I1000",
+   "tipo": "righe9"
+  },
+  {
+   "nome": "coverCognome",
+   "range": "Cover!G19",
+   "tipo": "testo"
+  },
+  {
+   "nome": "coverTutteTri",
+   "range": "Cover!B25",
+   "tipo": "bool"
+  },
+  {
+   "nome": "coverIndTri",
+   "range": "Cover!C25:C28",
+   "tipo": "bool"
+  },
+  {
+   "nome": "coverTutteMag",
+   "range": "Cover!B31",
+   "tipo": "bool"
+  },
+  {
+   "nome": "coverIndMag",
+   "range": "Cover!C31:C33",
+   "tipo": "bool"
+  },
+  {
+   "nome": "coverStatoMag",
+   "range": "Cover!C29",
+   "tipo": "menu",
+   "valori": [
+    "✔",
+    "∅",
+    "✗"
+   ]
+  },
+  {
+   "nome": "coverNotaMag",
+   "range": "Cover!C40",
+   "tipo": "bool"
+  },
+  {
+   "nome": "coverCons",
+   "range": "Cover!C30",
+   "tipo": "bool",
+   "solo_su_richiesta": true
+  },
+  {
+   "nome": "coverAvvisoDott",
+   "range": "Cover!C43",
+   "tipo": "bool",
+   "solo_su_richiesta": true
+  },
+  {
+   "nome": "esclusioniEsamiDaFare",
+   "range": "Input!Q25:BC25",
+   "tipo": "bool",
+   "solo_su_richiesta": true
+  }
+ ],
+ "registro": {
+  "id": "1NjLVayRZDbbunQt5hXrvOstM0Z6IYGpRm9s_BsHn1So",
+  "foglio": "Registro",
+  "colonne_nuova_riga": [
+   "Provenienza",
+   "ID pratica",
+   "Studente",
+   "Operatore",
+   "Stato",
+   "Revisione",
+   "Cartella (link)",
+   "File riconoscimento (link)",
+   "Mail (messageId)",
+   "Aperta il",
+   "Ultimo aggiornamento",
+   "Storia"
+  ],
+  "colonne_aggiornamento": [
+   "Stato",
+   "Revisione",
+   "Inviata il",
+   "Cartella (link)",
+   "File riconoscimento (link)",
+   "Mail (messageId)",
+   "Ultimo aggiornamento",
+   "Storia",
+   "PDF"
+  ],
+  "mai": [
+   "Mail (link)",
+   "Note"
+  ],
+  "menu": {
+   "Provenienza": [
+    "cfu@",
+    "presidenza.ingegneria@"
+   ],
+   "Stato": [
+    "da fare",
+    "in lavorazione",
+    "in attesa segreteria",
+    "inviata",
+    "da rivedere",
+    "annullata"
+   ],
+   "PDF": [
+    "richiesto"
+   ]
+  }
+ },
+ "target": [
+  {
+   "col": "Q",
+   "nome": "Calcolo e Algebra Lineare",
+   "codice": 0,
+   "previsti": 9.0
+  },
+  {
+   "col": "R",
+   "nome": "Chimica e Scienza dei Materiali",
+   "codice": 123,
+   "previsti": 6.0
+  },
+  {
+   "col": "S",
+   "nome": "Informatica",
+   "codice": 0,
+   "previsti": 9.0
+  },
+  {
+   "col": "T",
+   "nome": "Economia e Gestione d'Impresa",
+   "codice": 123,
+   "previsti": 9.0
+  },
+  {
+   "col": "U",
+   "nome": "Metodi Matematici per l'Ingegneria",
+   "codice": 0,
+   "previsti": 9.0
+  },
+  {
+   "col": "V",
+   "nome": "Inglese Tecnico",
+   "codice": 0,
+   "previsti": 3.0
+  },
+  {
+   "col": "W",
+   "nome": "Fisica I",
+   "codice": 0,
+   "previsti": 6.0
+  },
+  {
+   "col": "X",
+   "nome": "Probabilità e Statistica",
+   "codice": 123,
+   "previsti": 9.0
+  },
+  {
+   "col": "Y",
+   "nome": "Fisica Tecnica e impianti energetici",
+   "codice": 0,
+   "previsti": 9.0
+  },
+  {
+   "col": "Z",
+   "nome": "Fisica II",
+   "codice": 0,
+   "previsti": 6.0
+  },
+  {
+   "col": "AA",
+   "nome": "Elettrotecnica e Impianti Elettrici",
+   "codice": 0,
+   "previsti": 9.0
+  },
+  {
+   "col": "AB",
+   "nome": "Scienza delle Costruzioni",
+   "codice": 0,
+   "previsti": 9.0
+  },
+  {
+   "col": "AC",
+   "nome": "Elementi di teoria dei sistemi e del controllo",
+   "codice": 1,
+   "previsti": 9.0
+  },
+  {
+   "col": "AD",
+   "nome": "Sistemi di produzione",
+   "codice": 1,
+   "previsti": 9.0
+  },
+  {
+   "col": "AE",
+   "nome": "Programmazione e Controllo della Produzione",
+   "codice": 1,
+   "previsti": 9.0
+  },
+  {
+   "col": "AF",
+   "nome": "Robotica",
+   "codice": 1,
+   "previsti": 9.0
+  },
+  {
+   "col": "AG",
+   "nome": "Ricerca operativa",
+   "codice": 128,
+   "previsti": 9.0
+  },
+  {
+   "col": "AH",
+   "nome": "Gestione della Qualità",
+   "codice": 12,
+   "previsti": 9.0
+  },
+  {
+   "col": "AI",
+   "nome": "Business intelligence",
+   "codice": 2,
+   "previsti": 9.0
+  },
+  {
+   "col": "AJ",
+   "nome": "Algoritmi e programmazione avanzata",
+   "codice": 28,
+   "previsti": 9.0
+  },
+  {
+   "col": "AK",
+   "nome": "Logistica e supporto al prodotto",
+   "codice": 28,
+   "previsti": 12.0
+  },
+  {
+   "col": "AL",
+   "nome": "Gestione dei progetti",
+   "codice": 23,
+   "previsti": 6.0
+  },
+  {
+   "col": "AM",
+   "nome": "Complementi di Matematica (e analisi strutturale)",
+   "codice": 3,
+   "previsti": 9.0
+  },
+  {
+   "col": "AN",
+   "nome": "Disegno",
+   "codice": 3,
+   "previsti": 9.0
+  },
+  {
+   "col": "AO",
+   "nome": "Estimo e contabilità",
+   "codice": 3,
+   "previsti": 9.0
+  },
+  {
+   "col": "AP",
+   "nome": "Tecnica delle costruzioni",
+   "codice": 3,
+   "previsti": 12.0
+  },
+  {
+   "col": "AQ",
+   "nome": "Territori fisici e ambienti digitali",
+   "codice": 3,
+   "previsti": 9.0
+  },
+  {
+   "col": "AR",
+   "nome": "Materiali e Costruzioni aeronautiche",
+   "codice": 8,
+   "previsti": 12.0
+  },
+  {
+   "col": "AS",
+   "nome": "Processi e Metodi di manutenzione",
+   "codice": 8,
+   "previsti": 9.0
+  },
+  {
+   "col": "AT",
+   "nome": "Impianti e sistemi aerospaziali",
+   "codice": 8,
+   "previsti": 12.0
+  },
+  {
+   "col": "AU",
+   "nome": "Motori a turbina gas",
+   "codice": 8,
+   "previsti": 9.0
+  },
+  {
+   "col": "AV",
+   "nome": "Complementi di motori",
+   "codice": 8,
+   "previsti": 6.0
+  },
+  {
+   "col": "AW",
+   "nome": "Disegno Tecnico industriale",
+   "codice": 8,
+   "previsti": 6.0
+  },
+  {
+   "col": "AX",
+   "nome": "Gestione dei sistemi meccanici",
+   "codice": 8,
+   "previsti": 6.0
+  },
+  {
+   "col": "AY",
+   "nome": "Impianti Industriali",
+   "codice": 123,
+   "previsti": 12.0
+  },
+  {
+   "col": "AZ",
+   "nome": "Insegnamenti a scelta",
+   "codice": 0,
+   "previsti": 12.0
+  },
+  {
+   "col": "BA",
+   "nome": "Tirocinio",
+   "codice": 0,
+   "previsti": 3.0
+  },
+  {
+   "col": "BB",
+   "nome": "Ulteriori Conoscenze",
+   "codice": 0,
+   "previsti": 3.0
+  },
+  {
+   "col": "BC",
+   "nome": "Prova Finale Triennale",
+   "codice": 0,
+   "previsti": 3.0
+  },
+  {
+   "col": "BD",
+   "nome": "Altri esami BASE",
+   "codice": 999,
+   "previsti": null
+  },
+  {
+   "col": "BE",
+   "nome": "Altri esami ING-IND/16 + 17 + 35",
+   "codice": 999,
+   "previsti": null
+  },
+  {
+   "col": "BF",
+   "nome": "Altri esami SECS-P + ING/IND",
+   "codice": 999,
+   "previsti": null
+  },
+  {
+   "col": "BG",
+   "nome": "Metodi numerici",
+   "codice": 4,
+   "previsti": 9.0
+  },
+  {
+   "col": "BH",
+   "nome": "Organizzazione aziendale",
+   "codice": 4,
+   "previsti": 9.0
+  },
+  {
+   "col": "BI",
+   "nome": "Economia dell'innovazione",
+   "codice": 4,
+   "previsti": 9.0
+  },
+  {
+   "col": "BJ",
+   "nome": "Materiali e tecnologie innovative",
+   "codice": 4,
+   "previsti": 9.0
+  },
+  {
+   "col": "BK",
+   "nome": "Gestione dei sistemi energetici",
+   "codice": 56,
+   "previsti": 9.0
+  },
+  {
+   "col": "BL",
+   "nome": "Mobilità sostenibile - strategia e strumenti",
+   "codice": 5,
+   "previsti": 6.0
+  },
+  {
+   "col": "BM",
+   "nome": "Resilienza dei sistemi complessi",
+   "codice": 5,
+   "previsti": 6.0
+  },
+  {
+   "col": "BN",
+   "nome": "Trasporto merci e logistica",
+   "codice": 5,
+   "previsti": 9.0
+  },
+  {
+   "col": "BO",
+   "nome": "Diritto commerciale",
+   "codice": 6,
+   "previsti": 6.0
+  },
+  {
+   "col": "BP",
+   "nome": "Energetica e sistemi energetici",
+   "codice": 6,
+   "previsti": 9.0
+  },
+  {
+   "col": "BQ",
+   "nome": "Green Economy, energia e economia circolare",
+   "codice": 6,
+   "previsti": 6.0
+  },
+  {
+   "col": "BR",
+   "nome": "Impatto ambientale dei sistemi energetici",
+   "codice": 6,
+   "previsti": 6.0
+  },
+  {
+   "col": "BS",
+   "nome": "Ricerca operativa II",
+   "codice": 57,
+   "previsti": 6.0
+  },
+  {
+   "col": "BT",
+   "nome": "Digital innovation",
+   "codice": 7,
+   "previsti": 9.0
+  },
+  {
+   "col": "BU",
+   "nome": "Advanced manufacturing",
+   "codice": 7,
+   "previsti": 9.0
+  },
+  {
+   "col": "BV",
+   "nome": "Automazione dei processi industriali",
+   "codice": 7,
+   "previsti": 6.0
+  },
+  {
+   "col": "BW",
+   "nome": "Tecnologie digitali per l'industria 4.0",
+   "codice": 7,
+   "previsti": 6.0
+  },
+  {
+   "col": "BX",
+   "nome": "Modellazione dei sistemi produttivi e logistici",
+   "codice": 4,
+   "previsti": 9.0
+  },
+  {
+   "col": "BY",
+   "nome": "Sistemi e processi di produzione avanzati",
+   "codice": 4,
+   "previsti": 9.0
+  },
+  {
+   "col": "BZ",
+   "nome": "Esami a scelta dello studente",
+   "codice": 4,
+   "previsti": 9.0
+  },
+  {
+   "col": "CA",
+   "nome": "Altre conoscenze utili per l'inserimento nel mondo del lavoro",
+   "codice": 4,
+   "previsti": 3.0
+  },
+  {
+   "col": "CB",
+   "nome": "Prova finale magistrale",
+   "codice": 4,
+   "previsti": 18.0
+  }
+ ],
+ "sheetId": {
+  "Input": 1276406507,
+  "Affidabilita_CFU": 126122294,
+  "CFU_per_CV": 1422568078,
+  "Trash": 2120773365,
+  "Trash_tabella_azzurra": 237468339,
+  "Cover": 1766898699
+ }
+}
