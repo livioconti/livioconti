@@ -51,9 +51,11 @@ const REGISTRO_FOGLIO = 'Registro';
 const COL = {
   provenienza: 'Provenienza', id: 'ID pratica', studente: 'Studente', operatore: 'Operatore',
   stato: 'Stato', revisione: 'Revisione', cartella: 'Cartella (link)',
-  file: 'File riconoscimento (link)', mailId: 'Mail (messageId)', mailLink: 'Mail (link)',
+  file: 'File riconoscimento (link)', mailId: 'Mail (messageId)',
   aggiornato: 'Ultimo aggiornamento', storia: 'Storia'
 };
+// "Mail (link)" è una ARRAYFORMULA in riga 1: lo script non la scrive mai
+// (un valore in quella colonna la rompe con #REF!).
 const STATO_NUOVA = 'da fare';
 const STATO_RIAPERTA = 'da rivedere';
 // Solo da questi stati una nuova mail riporta la pratica a "da rivedere"
@@ -773,8 +775,10 @@ function registraArrivo_(message, info) {
     if (!p) {
       const rev = info.revisione || 0;
       const id = prossimoIdPratica_(reg, ora);
-      const riga = new Array(reg.nCol).fill('');
-      const metti = function (k, val) { if (c[k]) riga[c[k] - 1] = val; };
+      // riga dopo l'ultima con Studente o ID: getLastRow() non serve, la
+      // ARRAYFORMULA di "Mail (link)" fa sembrare piene tutte le righe
+      const nuova = ultimaRigaDati_(reg) + 1;
+      const metti = function (k, val) { if (c[k]) sh.getRange(nuova, c[k]).setValue(val); };
       metti('provenienza', prov);
       metti('id', id);
       metti('studente', info.studente || pulisciNome_(message.getSubject()));
@@ -786,8 +790,6 @@ function registraArrivo_(message, info) {
       metti('mailId', threadId);
       metti('aggiornato', data_(ora));
       metti('storia', 'Rev ' + rev + ' arrivata ' + data_(ora, 'dd/MM HH:mm') + ' ' + dett);
-      sh.appendRow(riga);
-      if (c.mailLink) sh.getRange(sh.getLastRow(), c.mailLink).setRichTextValue(linkMail_(threadId));
       return 'Registro: nuova pratica <b>' + id + '</b>, stato "' + STATO_NUOVA + '".';
     }
 
@@ -842,7 +844,7 @@ function apriRegistro_() {
  * (ultima riga non annullata). null se non c'è.
  */
 function trovaPratica_(reg, threadId, studente) {
-  const ultima = reg.sh.getLastRow();
+  const ultima = ultimaRigaDati_(reg);
   if (ultima < 2) return null;
   const dati = reg.sh.getRange(2, 1, ultima - 1, reg.nCol).getValues();
   const c = reg.col;
@@ -864,8 +866,9 @@ function trovaPratica_(reg, threadId, studente) {
 function prossimoIdPratica_(reg, ora) {
   const anno = data_(ora, 'yyyy');
   let max = 0;
-  if (reg.col.id && reg.sh.getLastRow() >= 2) {
-    reg.sh.getRange(2, reg.col.id, reg.sh.getLastRow() - 1, 1).getValues().forEach(function (r) {
+  const ultima = ultimaRigaDati_(reg);
+  if (reg.col.id && ultima >= 2) {
+    reg.sh.getRange(2, reg.col.id, ultima - 1, 1).getValues().forEach(function (r) {
       const m = String(r[0]).match(/^CFU-(\d{4})-(\d+)$/);
       if (m && m[1] === anno) max = Math.max(max, parseInt(m[2], 10));
     });
@@ -875,14 +878,24 @@ function prossimoIdPratica_(reg, ora) {
 
 function provenienza_(message) {
   const da = String(message.getFrom()).toLowerCase();
-  if (da.indexOf('presidenza.ingegneria@') >= 0) return 'presidenza@';
+  if (da.indexOf('presidenza.ingegneria@') >= 0) return 'presidenza.ingegneria@';
   if (da.indexOf('cfu@') >= 0) return 'cfu@';
   return da.replace(/^.*</, '').replace(/>.*$/, '');
 }
 
-function linkMail_(threadId) {
-  const url = 'https://mail.google.com/mail/?authuser=' + emailUtente_() + '#all/' + threadId;
-  return SpreadsheetApp.newRichTextValue().setText('Apri mail').setLinkUrl(url).build();
+/** Ultima riga con Studente o ID pratica compilati (1 se il registro è vuoto). */
+function ultimaRigaDati_(reg) {
+  const n = reg.sh.getMaxRows();
+  if (n < 2) return 1;
+  const cols = [reg.col.studente, reg.col.id].filter(Boolean);
+  let ultima = 1;
+  cols.forEach(function (c) {
+    const v = reg.sh.getRange(2, c, n - 1, 1).getValues();
+    for (let i = v.length - 1; i >= 0; i--) {
+      if (String(v[i][0]).trim() !== '') { ultima = Math.max(ultima, i + 2); break; }
+    }
+  });
+  return ultima;
 }
 
 function emailUtente_() {

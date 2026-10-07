@@ -22,11 +22,11 @@ Lo scaricamento automatico è personale: lo attiva ogni utente per la propria ca
 
 Lo script trova le colonne **per intestazione**, quindi puoi spostarle senza problemi; non rinominarle però. Lo script scrive solo:
 
-- **Pratica nuova**: una riga in fondo con ID `CFU-AAAA-NNN`, stato `da fare`, Revisione 0, link a cartella, file e mail, e una voce in Storia.
+- **Pratica nuova**: una riga subito sotto l'ultima pratica (mai in fondo al foglio) con ID `CFU-AAAA-NNN`, stato `da fare`, Revisione 0, link a cartella, file e mail, e una voce in Storia.
 - **Pratica esistente** (cercata prima per thread, poi per studente):
   - aggiorna *Revisione*, *Storia* e *Ultimo aggiornamento*, e completa i link mancanti;
   - lo **stato** cambia solo da `inviata` o `in attesa segreteria` a `da rivedere`. Negli altri stati resta com'è.
-- **Non tocca** *Operatore* (delle righe esistenti), *Inviata il*, *Aperta il*, *Note*, *PDF* né le altre righe.
+- **Non tocca** *Mail (link)* (è una formula: scriverci la rompe), *Operatore* (delle righe esistenti), *Inviata il*, *Aperta il*, *Note*, *PDF* né le altre righe.
 
 Corrispondenza revisioni: Revisione 0 corrisponde alla cartella principale, Revisione 1 a `Revisione_02`, Revisione 2 a `Revisione_03`, e così via.
 
