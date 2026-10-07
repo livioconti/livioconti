@@ -9,6 +9,7 @@ Regole comuni, Registro e stati: `references/processo.md` della skill **cfu-expr
 
 ## 0. Prerequisiti
 
+- **Individua la pratica** come in `references/processo.md` § *Individuare la pratica*: va bene la mail aperta, il nome/cognome, l'ID o il link della cartella. Senza mail aperta il thread a cui rispondere è quello di `pratica.json` / colonna `Mail (messageId)`.
 - Leggi `pratica.json` (o `mail_riconoscimento.json` per le pratiche vecchie) nella cartella: `idPratica`, `provenienza`, `gmailMessageId`, `gmailThreadId`, studente, ID del file di riconoscimento. Se `provenienza` manca, leggila dalla colonna Provenienza del Registro (o dal mittente del messaggio di richiesta).
 - **Riallineamento** (processo.md) e lettura della riga dello studente. Se lo stato è `inviata` o `annullata`, dillo e chiedi se procedere comunque (es. reinvio). Nessun altro blocco: se l'operatore chiede di chiudere, si chiude.
 
@@ -32,7 +33,7 @@ Regole comuni, Registro e stati: `references/processo.md` della skill **cfu-expr
 3. Crea la bozza con il PDF allegato, in quest'ordine di preferenza:
    - **Interfaccia Gmail** (scheda Gmail; unico uso del browser in chiusura): scarica il PDF da Drive con `download_file_content` e salvalo nel workspace decodificando il base64 dal file del risultato (mai ricopiarlo a mano); poi apri il thread, "Rispondi a tutti", scrivi il testo, carica il PDF con `file_upload` sull'input file degli allegati, **non premere Invia**; la bozza si salva da sola. Raggruppa i passi in un solo `browser_batch` quando possibile. Se la bozza esiste già e il PDF è stato rigenerato: rimuovi il vecchio allegato e carica il nuovo, **senza toccare il testo** (l'operatore può averlo modificato).
    - **Connettore Gmail** (`create_draft` con `replyToMessageId`, destinatari espliciti e `attachments` base64) solo se il PDF è piccolo e il browser non è disponibile.
-   - In ultima istanza: bozza senza allegato + chiedi all'utente di allegare il PDF dalla cartella.
+   - In ultima istanza (anche quando si lavora senza Claude in Chrome): bozza senza allegato con il link al PDF in Drive nel messaggio in chat (non nella mail) + chiedi all'utente di allegare il PDF dalla cartella prima di inviare.
 4. Mostra in chat: destinatari, oggetto, testo, nome e dimensione dell'allegato.
 5. **Fermati.** Si invia solo dopo un ok esplicito dell'utente in chat riferito a questa bozza (oppure lo invia lui da Gmail).
 

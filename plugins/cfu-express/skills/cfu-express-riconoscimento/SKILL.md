@@ -1,6 +1,6 @@
 ---
 name: cfu-express-riconoscimento
-description: "Riconoscimento CFU Express per Ingegneria Gestionale UNINETTUNO (file RiconoscimentoCFU_IngGestionale): legge tutto da Drive, decide con le stesse regole del riconoscimento interattivo, scrive direttamente nel foglio con il connettore Google Sheets (una scrittura per fase, solo celle della whitelist, dopo il \"sì\" dell'operatore; ripiego: JSON + menu Importa). Due modalità: automatica (report iniziale e finale) o interattiva (fermate di revisione). Usala per \"riconoscimento CFU express\", \"riconoscimento automatico\", \"cfu express\", \"riconoscimento veloce\"."
+description: "Riconoscimento CFU Express per Ingegneria Gestionale UNINETTUNO (file RiconoscimentoCFU_IngGestionale): legge tutto da Drive, decide con le stesse regole del riconoscimento interattivo, scrive direttamente nel foglio con il connettore Google Sheets (una scrittura per fase, solo celle della whitelist, dopo il \"sì\" dell'operatore; ripiego: JSON + menu Importa). Due modalità: automatica (report iniziale e finale) o interattiva (fermate di revisione). Funziona anche senza mail aperta e senza browser: basta indicare la pratica con nome e/o cognome, ID (CFU-AAAA-NNN) o link della cartella in CFU_GDrive. Usala per \"riconoscimento CFU express\", \"riconoscimento express di COGNOME\", \"fai l'express della pratica CFU-2026-011\", \"riconoscimento automatico\", \"cfu express\", \"riconoscimento veloce\"."
 ---
 
 # cfu-express-riconoscimento
@@ -15,8 +15,9 @@ Stesso **merito** del riconoscimento interattivo, metodo diverso: **niente brows
 
 ## 1. Avvio (al massimo una schermata)
 
-0. **Pratica non ancora aperta** (nessuna riga nel Registro, nessuna cartella `CFU_COGNOME_NOME`, l'operatore indica solo la mail): esegui **prima** tutta **cfu-express-apri** (cartella, copia del template, allegati in cartella, `pratica.json`, Registro) e solo dopo leggi i documenti. Non leggere allegati dalla mail o da "Il mio Drive" prima che siano nella cartella della pratica.
-1. File di riconoscimento: ID dall'URL del foglio aperto, dal link o dal `pratica.json` (se manca, chiedilo); cartella con `get_file_metadata`.
+0. **Individua la pratica** (`references/processo.md` della skill cfu-express-apri, § *Individuare la pratica*): mail aperta nella scheda Gmail **oppure** nome e/o cognome, ID pratica o link della cartella/del file, scritti in chat. Non servono né la mail aperta né il browser.
+0bis. **Pratica non ancora aperta**: nessuna riga, oppure riga `da fare` (anche se lo scaricamento automatico ha già creato cartella e file), oppure manca `pratica.json` o il foglio di riconoscimento: esegui **prima** tutta **cfu-express-apri** (riusa quello che c'è, crea il resto) e solo dopo leggi i documenti. Non leggere allegati dalla mail o da "Il mio Drive" prima che siano nella cartella della pratica.
+1. File di riconoscimento: dal link della colonna *File riconoscimento* del Registro, dall'URL del foglio aperto, dal link indicato o dal `pratica.json` della cartella corrente (se manca, chiedilo); cartella con `get_file_metadata`. In una revisione (`Revisione_NN`) i documenti nuovi sono nella sottocartella, quelli non ripetuti (es. modulo) nella cartella principale.
 2. Se la richiesta non dice già la modalità, **una** `AskUserQuestion`:
    - **Modalità**: `Automatica (Consigliata)` — nessuna domanda, ipotesi dichiarate nei report · `Interattiva` — fermate F1 (matrice) e domande sui casi ambigui.
    - **Passi** (multiSelect, tutti selezionati di default): preparazione dati · esami · CV · Cover · affidabilità.
@@ -24,7 +25,7 @@ Stesso **merito** del riconoscimento interattivo, metodo diverso: **niente brows
 
 ## 2. Lettura (solo Drive, una volta)
 
-1. `search_files` nella cartella: classifica i file (modulo/tabelle esami, CV, certificazioni, `pratica.json`, JSON Express precedenti).
+1. `search_files` nella cartella corrente (e nella principale, se è una revisione): classifica i file (modulo/tabelle esami, CV, certificazioni, `pratica.json`, JSON Express precedenti).
 2. Word delle tabelle: `read_file_content`; binario solo se gialla e azzurra non si distinguono (R2).
 3. **Il foglio non si legge.** Target, codici, CFU previsti e celle scrivibili sono in `whitelist.json` (template fisso; copia nuova = vuota). Si legge dal foglio solo ciò che ha scritto l'operatore: la colonna A di `CFU_per_CV` (secondo giro CV, `get_values` su `CFU_per_CV!A2:A`). Per una revisione di una pratica già scritta si svuotano gli intervalli della whitelist nella stessa scrittura (`scrittura.md`).
 4. `pratica.json`: `idPratica` e `provenienza` (`cfu@` / `presidenza.ingegneria@`) per il Registro e per l'eventuale mail F0 (va alla segreteria di provenienza, "rispondi a tutti").
@@ -33,7 +34,7 @@ Stesso **merito** del riconoscimento interattivo, metodo diverso: **niente brows
 ## 3. Report iniziale (in chat, breve) e fermata F0
 
 - **CFU della laurea di poco inferiori al totale atteso** (es. 173 su 180) quando mancano verosimilmente voci non curricolari (prova finale/tesi, tirocinio, altre attività, idoneità, a scelta): **non è F0**. Scrivi un **avviso** nel report iniziale ("Avviso: 173/180 CFU, mancano 7 CFU, probabilmente voci non curricolari non elencate") e prosegui; riportalo nel report finale e nella Storia del Registro. Diventa F0 solo con un'incongruenza **sostanziale** (`references/fermata-chiarimenti.md` §1bis).
-- **Controllo di coerenza** dei dati letti (`references/fermata-chiarimenti.md` §1). Se qualcosa di sostanziale non torna: **fermata F0 anche in automatica**: tabella delle anomalie, domanda all'operatore (`Prepara la mail alla segreteria` / `Prosegui con ipotesi dichiarate` / `Correggo io i dati`), bozza "rispondi a tutti" con le domande, invio **solo con ok esplicito**, Registro `attesa-chiarimenti`, nessuna scrittura nel foglio finché la fermata è aperta (solo la riga del Registro). Altrimenti: "Lettura: nessuna anomalia" e prosegui.
+- **Controllo di coerenza** dei dati letti (`references/fermata-chiarimenti.md` §1). Se qualcosa di sostanziale non torna: **fermata F0 anche in automatica**: tabella delle anomalie, domanda all'operatore (`Prepara la mail alla segreteria` / `Prosegui con ipotesi dichiarate` / `Correggo io i dati`), bozza "rispondi a tutti" con le domande, invio **solo con ok esplicito**, Registro `in attesa segreteria` (dopo l'invio della mail), nessuna scrittura nel foglio finché la fermata è aperta (solo la riga del Registro). Altrimenti: "Lettura: nessuna anomalia" e prosegui.
 
 - Riassunto del modulo (R1): titolo dichiarato, livello e indirizzi richiesti, competenze dichiarate, incongruenze. Gli indirizzi richiesti non restringono il riconoscimento: si fanno sempre **tutti** gli indirizzi del livello richiesto (R1, R9).
 - Dati: esami della gialla (numero, CFU totali), azzurra (solo riferimento), normalizzazioni, V.O. con CFU assunti.

@@ -1,4 +1,4 @@
-# CFU Express – UNINETTUNO (plugin 1.1.1)
+# CFU Express – UNINETTUNO (plugin 1.8.0)
 
 Plugin **alternativo e distinto** da `riconoscimento-cfu-uninettuno` (il plugin interattivo). Stesso **merito** del riconoscimento (regole in `skills/cfu-express-riconoscimento/references/regole.md`, identiche a quelle del plugin interattivo); cambia il metodo: **nessuna lettura o scrittura del foglio tramite browser.**
 
@@ -8,6 +8,15 @@ Plugin **alternativo e distinto** da `riconoscimento-cfu-uninettuno` (il plugin 
 - Connettore **Google Sheets** attivo nella chat: Claude scrive direttamente nel file di riconoscimento e nel Registro, solo nelle celle elencate in `scripts/whitelist.json`, dopo una verifica unica del piano (`scripts/verifica_scrittura.py`), **senza chiedere conferma prima** (dalla 1.6): poi si ferma e chiede se procedere, così l'operatore può modificare il file. Il file può restare chiuso.
 - PDF a file chiuso: incolla `scripts/PdfRegistro.gs` nel progetto Apps Script del **Registro pratiche CFU** ed esegui una volta `installaPdfRegistro()` (crea la colonna PDF e un controllo ogni minuto). Claude scrive `richiesto` nella colonna PDF e lo script produce il PDF con la stessa logica del menu del template.
 - `ImportaRiconoscimento.gs` resta come ripiego quando il connettore Sheets non è disponibile.
+
+## Come si avvia
+
+Due modi, stesso flusso:
+
+- **Da una mail aperta** in Gmail con Claude in Chrome: "riconoscimento express" sulla mail `… CFU NOME_COGNOME`.
+- **Senza mail né browser**, da una chat qualsiasi con i connettori Drive, Sheets e Gmail: "riconoscimento express di Fantozzi", "express della pratica CFU-2026-011" o "riconoscimento express" + link della cartella in CFU_GDrive. Claude trova la pratica nel Registro (nome in qualsiasi ordine, anche solo il cognome), poi in CFU_GDrive, poi in Gmail; con più candidati chiede quale.
+
+Se la pratica non è ancora aperta, prima la apre (cfu-express-apri) **riusando** cartella, file e allegati già creati dallo scaricamento automatico o dal pulsante "Salva allegati qui" del componente Gmail *Riconoscimento CFU*. Il browser serve solo se mancano gli allegati in cartella (un clic su "Aggiungi tutti a Drive") e per allegare il PDF alla bozza; senza browser Claude chiede di premere "Salva allegati qui" e prepara la bozza senza allegato.
 
 ## Come funziona
 
@@ -53,6 +62,7 @@ I due plugin possono stare entrambi installati: le skill Express si attivano con
 
 | Plugin | Data | Novità |
 |---|---|---|
+| 1.8.0 | 08/10/2026 | Pratica indicabile senza mail né browser: nome e/o cognome (qualsiasi ordine), ID pratica o link della cartella/del file, risolti da Registro → CFU_GDrive → Gmail (processo.md § *Individuare la pratica*); apertura che riusa cartella, foglio e allegati dello scaricamento automatico del componente Gmail (browser saltato se gli allegati sono già in cartella); stato `da fare` anche con cartella creata in automatico e Aperta il vuoto; numerazione `Revisione_NN` allineata alle cartelle esistenti (NN = Revisione + 1, prima `Revisione_02`); chiusura senza browser con bozza senza allegato; fermata F0: stato `in attesa segreteria` (non più `attesa-chiarimenti`, rifiutato dal menu dello Stato) |
 | 1.7.0 | 07/10/2026 | Apertura sempre prima dell'analisi (cartella, foglio di riconoscimento, allegati in cartella, poi lettura dei documenti), anche se l'operatore chiede subito il riconoscimento; browser ridotto a un clic in apertura e alla bozza con PDF in chiusura; CFU della laurea di poco inferiori al totale atteso (es. 173/180, voci non curricolari non elencate) = avviso all'operatore, non fermata F0 né mail; F0 solo per incongruenze sostanziali (fermata-chiarimenti §1bis) |
 | 1.6.0 | 07/10/2026 | Ipotesi di riconoscimento (esami e CV) scritte subito nel file senza chiedere il "sì"; CV con colonna A precompilata e applicata in Input!Q41:CB41; fermata dopo la scrittura ("procedo?") con rilettura e riallineamento alle modifiche dell'operatore. Restano le fermate F0 ed "esami fuori dalla gialla" |
 | 1.5.0 | 06/10/2026 | Indirizzi: se lo studente chiede anche un solo indirizzo triennale si riconoscono e si spuntano in Cover **tutti** i triennali; se chiede anche un solo indirizzo magistrale, **tutti** i magistrali (singoli indirizzi solo su indicazione esplicita dell'operatore) |
