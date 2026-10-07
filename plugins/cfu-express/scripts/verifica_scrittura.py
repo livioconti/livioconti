@@ -88,7 +88,7 @@ def main():
             for ri, row in enumerate(vals):
                 for ci, v in enumerate(row):
                     cella = f"{sh}!{n2col(c1+ci)}{r1+ri}"
-                    if isinstance(v, str) and v[:1] in ("=", "+", "-"):
+                    if isinstance(v, str) and v[:1] in ("=", "+", "-") and v.strip() not in ("-", "--"):   # "-" da solo è testo
                         err.append(f"{cella}: testo che inizia con '{v[:1]}' (diventerebbe formula)")
                     t = z["tipo"]
                     if t == "bool" and v not in (True, False):

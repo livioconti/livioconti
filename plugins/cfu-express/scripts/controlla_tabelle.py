@@ -103,6 +103,8 @@ def data_pulita(v):
 
 def ssd_pulito(v):
     s = pulisci_spazi(v).upper().replace(";", ",")
+    if s in ("-", "–", "—", "N.D.", "ND", "/"): s = "NN"      # nessun SSD (tirocinio, prova finale)
+    s = re.sub(r"(/\d{2})\s*/\s*(?=[A-Z])", r"\1 ", s)       # ING-INF/05 / INF/01 -> due SSD
     s = re.sub(r"(/\d{2})(?=[A-Z])", r"\1 ", s)            # CHIM/01CHIM/01 -> CHIM/01 CHIM/01
     parti = [p.strip() for p in re.split(r"[,\s]+(?=[A-Z])", s) if p.strip()]
     out = []
