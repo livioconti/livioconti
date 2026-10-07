@@ -15,6 +15,19 @@
  * DRIVE — selezionando la cartella dello studente, il pannello permette di
  *   creare il file di riconoscimento o aggiornare il nome nella Cover.
  *
+ * AUTOMATICO (facoltativo, si attiva dal pannello) — ogni ora cerca le nuove
+ *   mail con etichetta CFU o CFUpresidenza e ne salva gli allegati:
+ *   - prima mail della pratica → CFU_GDrive/CFU_YYYY_XXXX (+ file di riconoscimento);
+ *   - mail successive (stesso thread o nuovo thread per lo stesso studente)
+ *     → CFU_YYYY_XXXX/Revisione_NN;
+ *   - mail con allegati già tutti presenti → nessuna cartella, solo una nota.
+ *   Le mail inviate da te e quelle arrivate prima dell'attivazione sono ignorate.
+ * REGISTRO — dopo ogni salvataggio (automatico o a mano) aggiorna "Registro pratiche CFU":
+ *   - pratica nuova → riga con stato "da fare", Revisione 0;
+ *   - pratica esistente → Revisione aggiornata, voce in Storia e, se era
+ *     "inviata" o "in attesa segreteria", stato "da rivedere".
+ *   Non tocca altre colonne né le altre righe.
+ *
  * Le immagini inline non vengono salvate; i file con lo stesso nome già
  * presenti nella cartella di destinazione vengono saltati.
  */
@@ -30,6 +43,32 @@ const PREFISSO_REVISIONE = 'Revisione_';
 const PREFISSO_FILE = 'Riconoscimento_CFU_Ingegneria Gestionale_';
 // File ausiliario con l'identificativo univoco della mail (letto dallo script del file di riconoscimento)
 const FILE_ID_MAIL = 'mail_riconoscimento.json';
+
+// Registro pratiche (in CFU_GDrive); le colonne sono cercate per intestazione
+const AGGIORNA_REGISTRO = true;
+const REGISTRO_ID = '1NjLVayRZDbbunQt5hXrvOstM0Z6IYGpRm9s_BsHn1So';
+const REGISTRO_FOGLIO = 'Registro';
+const COL = {
+  provenienza: 'Provenienza', id: 'ID pratica', studente: 'Studente', operatore: 'Operatore',
+  stato: 'Stato', revisione: 'Revisione', cartella: 'Cartella (link)',
+  file: 'File riconoscimento (link)', mailId: 'Mail (messageId)', mailLink: 'Mail (link)',
+  aggiornato: 'Ultimo aggiornamento', storia: 'Storia'
+};
+const STATO_NUOVA = 'da fare';
+const STATO_RIAPERTA = 'da rivedere';
+// Solo da questi stati una nuova mail riporta la pratica a "da rivedere"
+const STATI_DA_RIAPRIRE = ['inviata', 'in attesa segreteria'];
+// Nome mostrato nella colonna Operatore (altrimenti l'indirizzo email)
+const OPERATORI = { 'livio.conti@uninettunouniversity.net': 'Livio Conti' };
+
+// Scaricamento automatico
+const ETICHETTE_AUTO = ['CFU', 'CFUpresidenza'];
+const FUNZIONE_AUTO = 'scaricaAutomatico';
+const AUTO_OGNI_ORE = 1;            // gli add-on non possono andare sotto l'ora
+const AUTO_MAX_MAIL = 10;           // per esecuzione; le altre al giro successivo
+const AUTO_CREA_FOGLIO = true;      // crea il file di riconoscimento per le pratiche nuove
+const PROP_INIZIO = 'cfu_auto_inizio';
+const PROP_FATTO = 'cfu_fatto_';    // + id del messaggio: allegati già salvati
 
 // ======================================================================
 // GMAIL
@@ -71,6 +110,10 @@ function buildCard_(message, folderId, v) {
     secEmail.addWidget(CardService.newTextParagraph().setText(
       '⚠️ L\'oggetto non è del tipo "Fwd: CFU XXXX_YYYY": compila a mano i campi qui sotto.'));
   }
+  if (giaFatta_(message)) {
+    secEmail.addWidget(CardService.newTextParagraph().setText(
+      'ℹ️ Gli allegati di questa mail sono già stati salvati (a mano o in automatico).'));
+  }
 
   // --- Salvataggio
   const secSalva = CardService.newCardSection()
@@ -99,6 +142,11 @@ function buildCard_(message, folderId, v) {
       .setFieldName('nomeCover')
       .setTitle('Nome e/o cognome nella Cover del file')
       .setValue(v.nomeCover || ''))
+    .addWidget(CardService.newDecoratedText()
+      .setText('Aggiorna il registro delle pratiche')
+      .setWrapText(true)
+      .setSwitchControl(CardService.newSwitch()
+        .setFieldName('aggiornaRegistro').setValue('si').setSelected(AGGIORNA_REGISTRO)))
     .addWidget(CardService.newTextButton()
       .setText('Salva allegati qui')
       .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
@@ -167,7 +215,36 @@ function buildCard_(message, folderId, v) {
     .addSection(secNav)
     .addSection(secSotto)
     .addSection(secNuova)
+    .addSection(sezioneAutomatico_(base))
     .build();
+}
+
+/** Stato e interruttore dello scaricamento automatico (vale solo per chi lo attiva). */
+function sezioneAutomatico_(base) {
+  const attivo = automaticoAttivo_();
+  return CardService.newCardSection()
+    .setHeader('Scaricamento automatico')
+    .setCollapsible(true)
+    .setNumUncollapsibleWidgets(1)
+    .addWidget(CardService.newTextParagraph().setText(attivo
+      ? '🟢 <b>Attivo</b>: ogni ora salva gli allegati delle nuove mail con etichetta ' +
+        ETICHETTE_AUTO.join(' o ') + ' e aggiorna il registro.'
+      : '⚪ <b>Non attivo</b>: gli allegati si salvano solo con il pulsante "Salva allegati qui".'))
+    .addWidget(CardService.newTextButton()
+      .setText(attivo ? 'Disattiva' : 'Attiva')
+      .setOnClickAction(azione_(attivo ? 'disattivaDaCard' : 'attivaDaCard', base)));
+}
+
+function attivaDaCard(e) {
+  attivaAutomatico();
+  return aggiorna_(buildCard_(messageDaEvento_(e), e.parameters.folderId, campi_(e)),
+    'Scaricamento automatico attivato');
+}
+
+function disattivaDaCard(e) {
+  disattivaAutomatico();
+  return aggiorna_(buildCard_(messageDaEvento_(e), e.parameters.folderId, campi_(e)),
+    'Scaricamento automatico disattivato');
 }
 
 /** Naviga in un'altra cartella mantenendo i campi digitati. */
@@ -195,21 +272,24 @@ function salvaAllegati(e) {
   const v = campi_(e);
   const nomeSotto = pulisciNome_(v.nomeCartella);
   const creaFoglio = leggiCampo_(e, 'creaFoglio') === 'si';
+  const registro = leggiCampo_(e, 'aggiornaRegistro') === 'si';
 
   if (nomeSotto) {
     const it = corrente.getFoldersByName(nomeSotto);
     if (it.hasNext()) {
       const esistente = it.next();
-      return aggiorna_(cardRevisione_(e, corrente, esistente, v, creaFoglio),
+      return aggiorna_(cardRevisione_(e, corrente, esistente, v, creaFoglio, registro),
         'La cartella ' + nomeSotto + ' esiste già');
     }
   }
   const dest = nomeSotto ? corrente.createFolder(nomeSotto) : corrente;
-  return eseguiSalvataggio_(e, corrente, dest, dest, v, creaFoglio);
+  // cartella nuova = prima consegna (Revisione 0); senza sottocartella la revisione non cambia
+  return eseguiSalvataggio_(e, corrente, dest, dest, v, creaFoglio,
+    { registro: registro, revisione: nomeSotto ? 0 : null });
 }
 
 /** Avviso: cartella già esistente → proposta di sottocartella Revisione_NN. */
-function cardRevisione_(e, corrente, esistente, v, creaFoglio) {
+function cardRevisione_(e, corrente, esistente, v, creaFoglio, registro) {
   const proposta = prossimaRevisione_(esistente);
   const params = {
     messageId: e.parameters.messageId,
@@ -218,7 +298,8 @@ function cardRevisione_(e, corrente, esistente, v, creaFoglio) {
     nomeCartella: v.nomeCartella || '',
     nomeCover: v.nomeCover || '',
     nomeFile: v.nomeFile || '',
-    creaFoglio: creaFoglio ? 'si' : 'no'
+    creaFoglio: creaFoglio ? 'si' : 'no',
+    aggiornaRegistro: registro ? 'si' : 'no'
   };
   const sec = CardService.newCardSection()
     .addWidget(CardService.newTextParagraph().setText(
@@ -250,14 +331,16 @@ function salvaInRevisione(e) {
   // se nel frattempo esiste già, passa al numero successivo
   if (esistente.getFoldersByName(nomeRev).hasNext()) nomeRev = prossimaRevisione_(esistente);
   const dest = esistente.createFolder(nomeRev);
-  return eseguiSalvataggio_(e, corrente, dest, esistente, parametriCampi_(p), p.creaFoglio === 'si');
+  return eseguiSalvataggio_(e, corrente, dest, esistente, parametriCampi_(p), p.creaFoglio === 'si',
+    { registro: p.aggiornaRegistro === 'si', revisione: numeroRevisione_(nomeRev) });
 }
 
 function salvaInEsistente(e) {
   const p = e.parameters;
   const corrente = DriveApp.getFolderById(p.folderId);
   const esistente = DriveApp.getFolderById(p.esistenteId);
-  return eseguiSalvataggio_(e, corrente, esistente, esistente, parametriCampi_(p), p.creaFoglio === 'si');
+  return eseguiSalvataggio_(e, corrente, esistente, esistente, parametriCampi_(p), p.creaFoglio === 'si',
+    { registro: p.aggiornaRegistro === 'si', revisione: null });
 }
 
 function tornaDaParametri(e) {
@@ -272,17 +355,20 @@ function parametriCampi_(p) {
 /**
  * Salva gli allegati in dest; il file di riconoscimento va nella cartella
  * della pratica (cartellaPratica), non nella sottocartella di revisione.
+ * opz.registro: aggiorna il registro; opz.revisione: numero di revisione
+ * (0 = prima consegna, null = invariato).
  */
-function eseguiSalvataggio_(e, corrente, dest, cartellaPratica, v, creaFoglio) {
+function eseguiSalvataggio_(e, corrente, dest, cartellaPratica, v, creaFoglio, opz) {
   const message = messageDaEvento_(e);
-  let salvati = 0, saltati = 0;
-  message.getAttachments({ includeInlineImages: false }).forEach(function (a) {
-    const nomeFile = a.getName();
-    if (dest.getFilesByName(nomeFile).hasNext()) { saltati++; return; }
-    dest.createFile(a.copyBlob()).setName(nomeFile);
-    salvati++;
-  });
+  const esito = salvaAllegatiIn_(dest, message.getAttachments({ includeInlineImages: false }));
+  const salvati = esito.salvati, saltati = esito.saltati;
   const idMail = scriviIdMail_(dest, message);
+  segnaFatta_(message);
+  const r = creaFoglio ? creaFoglioRiconoscimento_(cartellaPratica, v.nomeFile, v.nomeCover) : null;
+  const esitoRegistro = opz.registro ? registraArrivo_(message, {
+    cartellaPratica: cartellaPratica, foglio: r && r.file, salvati: salvati,
+    studente: pulisciNome_(v.nomeCover), revisione: opz.revisione
+  }) : '';
 
   const sec = CardService.newCardSection()
     .addWidget(CardService.newTextParagraph().setText(
@@ -293,8 +379,9 @@ function eseguiSalvataggio_(e, corrente, dest, cartellaPratica, v, creaFoglio) {
     .addWidget(CardService.newTextButton().setText('Apri la cartella')
       .setOpenLink(CardService.newOpenLink().setUrl(dest.getUrl())));
 
-  if (creaFoglio) {
-    const r = creaFoglioRiconoscimento_(cartellaPratica, v.nomeFile, v.nomeCover);
+  if (esitoRegistro) sec.addWidget(CardService.newTextParagraph().setText(esitoRegistro));
+
+  if (r) {
     sec.addWidget(CardService.newTextParagraph().setText(
       (r.nuovo ? 'File di riconoscimento creato: ' : 'File di riconoscimento già presente (non modificato): ') +
       '<b>' + r.file.getName() + '</b>' + (r.nuovo ? '<br>' + r.esitoCover : '')))
@@ -491,6 +578,322 @@ function cardEsitoDrive_(cartella, file, titolo, esito) {
 }
 
 // ======================================================================
+// SCARICAMENTO AUTOMATICO
+// ======================================================================
+
+/** Attiva il controllo orario; considera solo le mail arrivate da adesso in poi. */
+function attivaAutomatico() {
+  disattivaAutomatico();
+  PropertiesService.getUserProperties().setProperty(PROP_INIZIO, String(Date.now()));
+  ScriptApp.newTrigger(FUNZIONE_AUTO).timeBased().everyHours(AUTO_OGNI_ORE).create();
+}
+
+function disattivaAutomatico() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === FUNZIONE_AUTO) ScriptApp.deleteTrigger(t);
+  });
+}
+
+function automaticoAttivo_() {
+  return ScriptApp.getProjectTriggers().some(function (t) {
+    return t.getHandlerFunction() === FUNZIONE_AUTO;
+  });
+}
+
+/**
+ * Eseguita dal trigger orario. Una mail che va in errore non viene segnata
+ * come fatta e viene ritentata al giro successivo.
+ */
+function scaricaAutomatico() {
+  const lock = LockService.getUserLock();
+  if (!lock.tryLock(1000)) return; // un'altra esecuzione è ancora in corso
+  try {
+    const props = PropertiesService.getUserProperties();
+    const inizio = Number(props.getProperty(PROP_INIZIO)) || Date.now();
+    const io = emailUtente_();
+    const query = '{' + ETICHETTE_AUTO.map(function (l) { return 'label:' + l; }).join(' ') + '}' +
+      ' has:attachment after:' + Math.floor(inizio / 1000);
+    const avvio = Date.now();
+    let fatte = 0;
+    const threads = GmailApp.search(query, 0, 50);
+    for (let i = 0; i < threads.length; i++) {
+      const messaggi = threads[i].getMessages();
+      for (let j = 0; j < messaggi.length; j++) {
+        if (fatte >= AUTO_MAX_MAIL || Date.now() - avvio > 4 * 60 * 1000) return;
+        const m = messaggi[j];
+        if (m.getDate().getTime() < inizio || m.isInTrash() || giaFatta_(m)) continue;
+        if (io && m.getFrom().toLowerCase().indexOf(io) >= 0) continue; // le tue risposte
+        const allegati = m.getAttachments({ includeInlineImages: false });
+        if (!allegati.length) { segnaFatta_(m); continue; }
+        try {
+          console.log(m.getSubject() + ': ' + archiviaAutomatico_(m, allegati));
+          segnaFatta_(m);
+          fatte++;
+        } catch (err) {
+          console.error('Errore su "' + m.getSubject() + '": ' + err.message);
+        }
+      }
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Salva gli allegati di una mail nella cartella della pratica e aggiorna il registro. */
+function archiviaAutomatico_(message, allegati) {
+  const st = estraiStudente_(message.getSubject()) ||
+    estraiStudente_(message.getThread().getFirstMessageSubject());
+  const nomeCartella = st ? st.cartella
+    : 'CFU_DA_SMISTARE_' + pulisciNome_(message.getSubject()).slice(0, 60);
+  const radice = DriveApp.getFolderById(PARENT_FOLDER_ID);
+  const it = radice.getFoldersByName(nomeCartella);
+  let pratica = it.hasNext() ? it.next() : null;
+  const studente = st ? st.cover : '';
+
+  if (pratica && salvataNelDrive_(pratica, message)) return 'già salvata in ' + pratica.getName();
+
+  let dest, revisione;
+  if (!pratica) {
+    pratica = radice.createFolder(nomeCartella);
+    dest = pratica;
+    revisione = 0;
+  } else if (tuttiGiaPresenti_(pratica, allegati)) {
+    registraArrivo_(message, { cartellaPratica: pratica, salvati: 0, studente: studente, duplicata: true });
+    return 'allegati già presenti in ' + pratica.getName();
+  } else {
+    const nomeRev = prossimaRevisione_(pratica);
+    dest = pratica.createFolder(nomeRev);
+    revisione = numeroRevisione_(nomeRev);
+  }
+
+  const esito = salvaAllegatiIn_(dest, allegati);
+  scriviIdMail_(dest, message);
+  const foglio = revisione === 0 && AUTO_CREA_FOGLIO && st
+    ? creaFoglioRiconoscimento_(pratica, '', studente).file : null;
+  registraArrivo_(message, {
+    cartellaPratica: pratica, foglio: foglio, salvati: esito.salvati,
+    studente: studente, revisione: revisione
+  });
+  return esito.salvati + ' allegati in ' + percorso_(dest);
+}
+
+/** Salva i blob in dest saltando i nomi già presenti. */
+function salvaAllegatiIn_(dest, allegati) {
+  let salvati = 0, saltati = 0;
+  allegati.forEach(function (a) {
+    const nomeFile = a.getName();
+    if (dest.getFilesByName(nomeFile).hasNext()) { saltati++; return; }
+    dest.createFile(a.copyBlob()).setName(nomeFile);
+    salvati++;
+  });
+  return { salvati: salvati, saltati: saltati };
+}
+
+/** Cartella della pratica e sue sottocartelle Revisione_NN. */
+function cartelleDellaPratica_(pratica) {
+  const cartelle = [pratica];
+  const re = new RegExp('^' + PREFISSO_REVISIONE + '\\d+$', 'i');
+  const it = pratica.getFolders();
+  while (it.hasNext()) {
+    const f = it.next();
+    if (re.test(f.getName())) cartelle.push(f);
+  }
+  return cartelle;
+}
+
+/** true se un mail_riconoscimento.json della pratica riporta già questa mail. */
+function salvataNelDrive_(pratica, message) {
+  let rfc = '';
+  try { rfc = message.getHeader('Message-ID') || ''; } catch (err) { rfc = ''; }
+  return cartelleDellaPratica_(pratica).some(function (c) {
+    const it = c.getFilesByName(FILE_ID_MAIL);
+    if (!it.hasNext()) return false;
+    try {
+      const d = JSON.parse(it.next().getBlob().getDataAsString());
+      return d.gmailMessageId === message.getId() || (rfc && d.rfcMessageId === rfc);
+    } catch (err) {
+      return false;
+    }
+  });
+}
+
+/** true se ogni allegato (stesso nome e dimensione) è già nella pratica. */
+function tuttiGiaPresenti_(pratica, allegati) {
+  const presenti = {};
+  cartelleDellaPratica_(pratica).forEach(function (c) {
+    const it = c.getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      presenti[f.getName() + '|' + f.getSize()] = true;
+    }
+  });
+  return allegati.every(function (a) { return presenti[a.getName() + '|' + a.getSize()]; });
+}
+
+function giaFatta_(message) {
+  return !!PropertiesService.getUserProperties().getProperty(PROP_FATTO + message.getId());
+}
+
+function segnaFatta_(message) {
+  PropertiesService.getUserProperties().setProperty(PROP_FATTO + message.getId(), String(Date.now()));
+}
+
+/** "Revisione_03" -> 2 (Revisione_02 è la prima revisione dopo la consegna 0). */
+function numeroRevisione_(nome) {
+  const m = String(nome).match(new RegExp('^' + PREFISSO_REVISIONE + '(\\d+)$', 'i'));
+  return m ? parseInt(m[1], 10) - 1 : null;
+}
+
+// ======================================================================
+// REGISTRO
+// ======================================================================
+
+/**
+ * Aggiorna il registro dopo un salvataggio. Scrive solo: una riga nuova, oppure
+ * Revisione, Stato (solo da inviata / in attesa segreteria), Storia, Ultimo
+ * aggiornamento e i link mancanti della riga della pratica.
+ * info: { cartellaPratica, foglio, salvati, studente, revisione (0 | n | null), duplicata }
+ * Restituisce un messaggio per il pannello.
+ */
+function registraArrivo_(message, info) {
+  if (!AGGIORNA_REGISTRO) return '';
+  const reg = apriRegistro_();
+  if (!reg) return '⚠️ Registro non raggiungibile: non aggiornato.';
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) return '⚠️ Registro occupato: non aggiornato, riprova.';
+  try {
+    const c = reg.col, sh = reg.sh;
+    const threadId = message.getThread().getId();
+    const ora = new Date();
+    const prov = provenienza_(message);
+    const dett = '(mail ' + prov + ' del ' + data_(message.getDate(), 'dd/MM') +
+      (info.duplicata ? ', allegati già presenti' : ', ' + info.salvati + ' allegati') + ')';
+    const p = trovaPratica_(reg, threadId, info.studente);
+
+    if (!p) {
+      const rev = info.revisione || 0;
+      const id = prossimoIdPratica_(reg, ora);
+      const riga = new Array(reg.nCol).fill('');
+      const metti = function (k, val) { if (c[k]) riga[c[k] - 1] = val; };
+      metti('provenienza', prov);
+      metti('id', id);
+      metti('studente', info.studente || pulisciNome_(message.getSubject()));
+      metti('operatore', OPERATORI[emailUtente_()] || emailUtente_());
+      metti('stato', STATO_NUOVA);
+      metti('revisione', rev);
+      metti('cartella', info.cartellaPratica.getUrl());
+      metti('file', info.foglio ? info.foglio.getUrl() : '');
+      metti('mailId', threadId);
+      metti('aggiornato', data_(ora));
+      metti('storia', 'Rev ' + rev + ' arrivata ' + data_(ora, 'dd/MM HH:mm') + ' ' + dett);
+      sh.appendRow(riga);
+      if (c.mailLink) sh.getRange(sh.getLastRow(), c.mailLink).setRichTextValue(linkMail_(threadId));
+      return 'Registro: nuova pratica <b>' + id + '</b>, stato "' + STATO_NUOVA + '".';
+    }
+
+    const val = function (k) { return c[k] ? p.valori[c[k] - 1] : ''; };
+    const scrivi = function (k, v) { if (c[k]) sh.getRange(p.riga, c[k]).setValue(v); };
+    const revAtt = Number(val('revisione')) || 0;
+    const rev = info.revisione == null ? revAtt : Math.max(info.revisione, revAtt);
+    const statoAtt = String(val('stato')).trim();
+    const riapri = !info.duplicata && STATI_DA_RIAPRIRE.indexOf(statoAtt) >= 0;
+    const voce = (info.duplicata ? 'Mail ripetuta '
+      : info.revisione == null ? 'Rev ' + rev + ' allegati aggiunti '
+      : 'Rev ' + rev + ' arrivata ') +
+      data_(ora, 'dd/MM HH:mm') + ' ' + dett + (riapri ? ' → ' + STATO_RIAPERTA : '');
+    const storia = String(val('storia') || '').trim();
+    scrivi('storia', storia ? storia + ' · ' + voce : voce);
+    if (rev !== revAtt) scrivi('revisione', rev);
+    if (riapri) scrivi('stato', STATO_RIAPERTA);
+    if (!val('cartella')) scrivi('cartella', info.cartellaPratica.getUrl());
+    if (!val('file') && info.foglio) scrivi('file', info.foglio.getUrl());
+    scrivi('aggiornato', data_(ora));
+    return 'Registro: pratica <b>' + val('id') + '</b> aggiornata' +
+      (riapri ? ', stato "' + STATO_RIAPERTA + '"' : ' (stato "' + statoAtt + '" invariato)') + '.';
+  } catch (err) {
+    return '⚠️ Registro non aggiornato: ' + err.message;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** { sh, col: {chiave: n. colonna}, nCol } oppure null se il registro non è utilizzabile. */
+function apriRegistro_() {
+  try {
+    const sh = SpreadsheetApp.openById(REGISTRO_ID).getSheetByName(REGISTRO_FOGLIO);
+    if (!sh) return null;
+    const nCol = sh.getLastColumn();
+    const intest = sh.getRange(1, 1, 1, nCol).getValues()[0].map(function (h) { return String(h).trim(); });
+    const col = {};
+    Object.keys(COL).forEach(function (k) {
+      const i = intest.indexOf(COL[k]);
+      if (i >= 0) col[k] = i + 1;
+    });
+    if (!col.studente || !col.stato || !col.mailId) return null;
+    return { sh: sh, col: col, nCol: nCol };
+  } catch (err) {
+    console.warn('Registro non raggiungibile: ' + err.message);
+    return null;
+  }
+}
+
+/**
+ * Riga della pratica: prima per thread (colonna Mail), poi per studente
+ * (ultima riga non annullata). null se non c'è.
+ */
+function trovaPratica_(reg, threadId, studente) {
+  const ultima = reg.sh.getLastRow();
+  if (ultima < 2) return null;
+  const dati = reg.sh.getRange(2, 1, ultima - 1, reg.nCol).getValues();
+  const c = reg.col;
+  const stud = String(studente || '').trim().toUpperCase();
+  let perStudente = null;
+  for (let i = dati.length - 1; i >= 0; i--) {
+    const r = dati[i];
+    if (String(r[c.mailId - 1]).trim() === threadId) return { riga: i + 2, valori: r };
+    if (!perStudente && stud &&
+        String(r[c.studente - 1]).trim().toUpperCase() === stud &&
+        String(r[c.stato - 1]).trim() !== 'annullata') {
+      perStudente = { riga: i + 2, valori: r };
+    }
+  }
+  return perStudente;
+}
+
+/** CFU-AAAA-NNN successivo al massimo dell'anno. */
+function prossimoIdPratica_(reg, ora) {
+  const anno = data_(ora, 'yyyy');
+  let max = 0;
+  if (reg.col.id && reg.sh.getLastRow() >= 2) {
+    reg.sh.getRange(2, reg.col.id, reg.sh.getLastRow() - 1, 1).getValues().forEach(function (r) {
+      const m = String(r[0]).match(/^CFU-(\d{4})-(\d+)$/);
+      if (m && m[1] === anno) max = Math.max(max, parseInt(m[2], 10));
+    });
+  }
+  return 'CFU-' + anno + '-' + String(max + 1).padStart(3, '0');
+}
+
+function provenienza_(message) {
+  const da = String(message.getFrom()).toLowerCase();
+  if (da.indexOf('presidenza.ingegneria@') >= 0) return 'presidenza@';
+  if (da.indexOf('cfu@') >= 0) return 'cfu@';
+  return da.replace(/^.*</, '').replace(/>.*$/, '');
+}
+
+function linkMail_(threadId) {
+  const url = 'https://mail.google.com/mail/?authuser=' + emailUtente_() + '#all/' + threadId;
+  return SpreadsheetApp.newRichTextValue().setText('Apri mail').setLinkUrl(url).build();
+}
+
+function emailUtente_() {
+  try { return String(Session.getEffectiveUser().getEmail() || '').toLowerCase(); } catch (err) { return ''; }
+}
+
+function data_(d, formato) {
+  return Utilities.formatDate(d, 'Europe/Rome', formato || 'dd/MM/yyyy HH:mm');
+}
+
+// ======================================================================
 // UTILITÀ
 // ======================================================================
 
@@ -543,13 +946,13 @@ function percorso_(folder) {
  * "Fwd: CFU XXXX_YYYY" -> { cartella: "CFU_YYYY_XXXX", cover: "YYYY_XXXX" }
  * es. "Fwd: CFU FLAVIO_TORRINI" -> cartella "CFU_TORRINI_FLAVIO", cover "TORRINI_FLAVIO".
  * Spazi, accenti e apostrofi vengono mantenuti. Il separatore tra XXXX e YYYY
- * è il primo "_" dopo "CFU ". Tollera prefissi Fwd:, Fw:, I:, R:, Re: ripetuti.
+ * è il primo "_" dopo "CFU ". Qualsiasi testo prima di "CFU " è ignorato
+ * (Fwd:, Re:, "Ingegneria Gestionale_Fwd: " delle mail della presidenza, …).
  * Restituisce null se l'oggetto non ha quel formato.
  */
 function estraiStudente_(subject) {
-  const s = String(subject).normalize('NFC')
-    .replace(/^\s*((fwd?|i|r|re)\s*:\s*)+/i, '');
-  const m = s.match(/^CFU\s+([^_]+?)\s*_\s*(.+?)\s*$/i);
+  const s = String(subject).normalize('NFC');
+  const m = s.match(/(?:^|[\s:_])CFU\s+([^_]+?)\s*_\s*(.+?)\s*$/i);
   if (!m) return null;
   const xxxx = pulisciNome_(m[1]);
   const yyyy = pulisciNome_(m[2]);
