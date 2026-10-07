@@ -11,7 +11,8 @@ piano.json:
   "registro": {"intestazioni": ["Provenienza", ...],            # riga 1 del Registro (letta una volta)
                "riga": 7, "nuova": false,
                "campi": {"Stato": "in lavorazione", "Ultimo aggiornamento": "...", ...}},
-  "esami": [[1, "Univ", "Fac", "Corso", "Esame", 28, "gg/mm/aaaa", 6, "SSD"], ...]   # facoltativo: righe di Input
+  "esami": [[1, "Univ", "Fac", "Corso", "Esame", 28, "gg/mm/aaaa", 6, "SSD"], ...],  # facoltativo: righe di Input
+  "foglioVuoto": true   # pratica nuova: si inviano solo le celle piene (richieste molto più corte)
 }
 
 Controlla, tutto in una volta:
@@ -141,8 +142,8 @@ def main():
         print("ERRORI (niente è stato scritto):"); [print(" -", e) for e in err]; sys.exit(1)
     if "--richieste" in sys.argv:
         out = sys.argv[sys.argv.index("--richieste") + 1]
-        json.dump(richieste(piano), open(out, "w", encoding="utf-8"), ensure_ascii=False)
-        riepilogo.append(f"richieste pronte in {out}")
+        json.dump(richieste(piano), open(out, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+        riepilogo.append(f"richieste pronte in {out} ({os.path.getsize(out) // 1024} KB)")
     print("OK: il piano scrive solo celle della whitelist.")
     [print("  ", r) for r in riepilogo]
     if matrice:
@@ -158,27 +159,63 @@ def cella(v):
 def rgb(h):
     h = h.lstrip("#"); return {"red": int(h[0:2], 16) / 255, "green": int(h[2:4], 16) / 255, "blue": int(h[4:6], 16) / 255}
 
+def griglia(sh, r1, r2, c1, c2):
+    return {"sheetId": WL["sheetId"][sh], "startRowIndex": r1 - 1, "endRowIndex": r2,
+            "startColumnIndex": c1 - 1, "endColumnIndex": c2}
+
 def richieste(piano):
-    """Una sola lista di richieste updateCells (valori e, se indicato, sfondo) per tutto il file di riconoscimento.
-    Le celle del range non fornite vengono svuotate: per azzerare un intervallo basta passare righe vuote."""
+    """Una sola lista di richieste per update_spreadsheet, il più corta possibile.
+    - Sfondo: una repeatCell per intervallo (non un formato per cella).
+    - Valori, pratica nuova ("foglioVuoto": true nel piano): blocchi quasi pieni (Trash, esami)
+      in una updateCells; blocchi sparsi (matrice) solo i tratti di celle piene, le celle
+      vuote non si inviano (il foglio è già vuoto).
+    - Valori, revisione (default): una updateCells sull'intero range, così le celle
+      non fornite vengono svuotate nella stessa chiamata."""
     req = []
+    vuoto = bool(piano.get("foglioVuoto"))
+    trash = None   # (r1, c1, valori) della tabella gialla scritta in Trash
     for w in piano.get("riconoscimento", []):
         sh, c1, r1, c2, r2 = parse(w["range"])
-        rng = {"sheetId": WL["sheetId"][sh], "startRowIndex": r1 - 1, "endRowIndex": r2,
-               "startColumnIndex": c1 - 1, "endColumnIndex": c2}
-        campi = []
         vals = w.get("valori")
-        if vals is not None: campi.append("userEnteredValue")
-        if w.get("sfondo"): campi.append("userEnteredFormat.backgroundColor")
-        righe = []
-        for ri in range(r2 - r1 + 1):
-            row = []
-            for ci in range(c2 - c1 + 1):
-                c = cella(vals[ri][ci]) if vals is not None else {}
-                if w.get("sfondo"): c["userEnteredFormat"] = {"backgroundColor": rgb(w["sfondo"])}
-                row.append(c)
-            righe.append({"values": row})
-        req.append({"updateCells": {"range": rng, "rows": righe, "fields": ",".join(campi)}})
+        if sh == "Trash" and vals:
+            trash = (r1, c1, vals)
+        # Input = righe della gialla già scritte in Trash (stessi valori): si copiano da lì,
+        # così gli esami viaggiano una volta sola
+        if sh == "Input" and r1 >= 42 and c1 == 1 and vals and trash:
+            tr1, tc1, tv = trash
+            for k in range(len(tv)):
+                if tv[k:k + len(vals)] == vals:
+                    req.append({"copyPaste": {
+                        "source": griglia("Trash", tr1 + k, tr1 + k + len(vals) - 1, tc1, tc1 + len(vals[0]) - 1),
+                        "destination": griglia(sh, r1, r2, c1, c2),
+                        "pasteType": "PASTE_VALUES"}})
+                    vals = None
+                    break
+            if vals is None:
+                continue
+        if w.get("sfondo"):
+            req.append({"repeatCell": {"range": griglia(sh, r1, r2, c1, c2),
+                                       "cell": {"userEnteredFormat": {"backgroundColor": rgb(w["sfondo"])}},
+                                       "fields": "userEnteredFormat.backgroundColor"}})
+        if vals is None:
+            continue
+        piene = sum(v not in ("", None) for row in vals for v in row)
+        if not vuoto or piene * 2 >= sum(len(row) for row in vals):   # revisione o blocco quasi pieno
+            righe = [{"values": [cella(v) for v in row]} for row in vals]
+            req.append({"updateCells": {"range": griglia(sh, r1, r2, c1, c2), "rows": righe,
+                                        "fields": "userEnteredValue"}})
+            continue
+        for ri, row in enumerate(vals):
+            ci = 0
+            while ci < len(row):
+                if row[ci] in ("", None):
+                    ci += 1; continue
+                cj = ci
+                while cj + 1 < len(row) and row[cj + 1] not in ("", None): cj += 1
+                req.append({"updateCells": {"range": griglia(sh, r1 + ri, r1 + ri, c1 + ci, c1 + cj),
+                                            "rows": [{"values": [cella(v) for v in row[ci:cj + 1]]}],
+                                            "fields": "userEnteredValue"}})
+                ci = cj + 1
     out = {"riconoscimento": req}
     reg = piano.get("registro")
     if reg and reg.get("intestazioni"):

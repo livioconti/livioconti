@@ -33,7 +33,7 @@ Perché le singole caselle della Cover: il legame "tutte" → indirizzi e lo sta
    Verifica tutto in un colpo (whitelist, colonne vietate, dimensioni, tipi, menu, testi con `= + -`, somme di riga per indirizzo, colonne ≤ previsti), stampa i CFU per indirizzo e prepara le richieste pronte. Se dà errori, correggi il piano: nel foglio non è stato scritto nulla.
 3. **Scrivi subito, senza chiedere conferma.** Il riepilogo si mostra dopo la scrittura, insieme alla domanda "procedo?" (SKILL §6).
 4. **Due chiamate in tutto:**
-   - file di riconoscimento: **una** `update_spreadsheet` con l'array `riconoscimento` di `richieste.json` (richieste `updateCells`: valori, sfondi e svuotamenti di tutti i fogli insieme; se una richiesta non è valida Google non applica nulla);
+   - file di riconoscimento: **una** `update_spreadsheet` con l'array `riconoscimento` di `richieste.json` (se una richiesta non è valida Google non applica nulla). Per stare corte le richieste usano: una `repeatCell` per lo sfondo di Trash; `copyPaste` (solo valori) da `Trash` a `Input!A42` quando gli esami coincidono, così viaggiano una volta sola; con `"foglioVuoto": true` nel piano (copia nuova del template) solo le celle piene della matrice. Esempio reale (12 esami): 27 KB → 10 KB;
    - Registro: **una** `update_values` con `registro.range` e `registro.values` (i `null` lasciano intatte le colonne non toccate, es. `Mail (link)`).
 5. Fine: la risposta `status: success` vale come conferma; i totali per indirizzo sono quelli stampati al punto 2. **Nessuna rilettura.**
 

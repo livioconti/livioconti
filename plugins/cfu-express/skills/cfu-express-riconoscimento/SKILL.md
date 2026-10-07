@@ -7,7 +7,7 @@ description: "Riconoscimento CFU Express per Ingegneria Gestionale UNINETTUNO (f
 
 Stesso **merito** del riconoscimento interattivo, metodo diverso: **niente browser, niente lettura del foglio.** Si leggono i documenti dello studente, si decide, si verifica il piano di scrittura in un colpo (`verifica_scrittura.py`) e si scrive **subito e direttamente** nel foglio con il connettore Google Sheets, **senza chiedere conferma**: una scrittura per fase, solo nelle celle della whitelist. Poi ci si ferma e si chiede all'operatore se procedere: lui può aprire il file e modificare matrice e CV prima di rispondere. Il file può restare chiuso.
 
-- Regole di merito (obbligatorie, da leggere all'inizio): `references/regole.md` (R1–R11) e, per il riconoscimento incrociato, `references/riconoscimento-incrociato.md`.
+- Regole di merito (obbligatorie, da leggere all'inizio): `references/regole.md` (R1–R11, casi frequenti). **Solo se la pratica li presenta**: `references/regole-casi.md` (esami V.O. senza CFU, riconoscimento incrociato fra due carriere, CV/certificazioni) e `references/riconoscimento-incrociato.md`. Non leggerli "per sicurezza": rallentano ogni pratica.
 - **Scrittura (obbligatorio):** `references/scrittura.md` — whitelist delle celle, piano, verifica unica, scrittura. Mappa fissa del template e target in `${CLAUDE_PLUGIN_ROOT}/scripts/whitelist.json`.
 - Ripiego senza connettore Sheets: JSON + **CFU → Importa riconoscimento (Express)** (`references/formato-json.md`).
 - Fermata dopo la lettura (anomalie → mail alla segreteria): `references/fermata-chiarimenti.md`.
@@ -20,13 +20,13 @@ Stesso **merito** del riconoscimento interattivo, metodo diverso: **niente brows
 1. File di riconoscimento: dal link della colonna *File riconoscimento* del Registro, dall'URL del foglio aperto, dal link indicato o dal `pratica.json` della cartella corrente (se manca, chiedilo); cartella con `get_file_metadata`. In una revisione (`Revisione_NN`) i documenti nuovi sono nella sottocartella, quelli non ripetuti (es. modulo) nella cartella principale.
 2. Se la richiesta non dice già la modalità, **una** `AskUserQuestion`:
    - **Modalità**: `Automatica (Consigliata)` — nessuna domanda, ipotesi dichiarate nei report · `Interattiva` — fermate F1 (matrice) e domande sui casi ambigui.
-   - **Passi** (multiSelect, tutti selezionati di default): preparazione dati · esami · CV · Cover · affidabilità.
+   - **Passi** (multiSelect, selezionati di default tutti tranne affidabilità): preparazione dati · esami · CV · Cover · **PDF subito** (solo automatica: il PDF si chiede nella stessa scrittura del Registro, così alla domanda "procedo?" è già pronto) · affidabilità.
 3. In modalità automatica: niente altre domande, **con due sole eccezioni** (§3): laurea dichiarata nel modulo i cui esami non sono nella tabella gialla ma in un altro allegato; anomalie nei dati letti (fermata **F0**). Cartella = quella del file; file = tutti quelli utili ai passi scelti; V.O. senza CFU = 10 (R3bis); casi ambigui = scelta più prudente, dichiarata.
 
 ## 2. Lettura (solo Drive, una volta)
 
 1. `search_files` nella cartella corrente (e nella principale, se è una revisione): classifica i file (modulo/tabelle esami, CV, certificazioni, `pratica.json`, JSON Express precedenti).
-2. Word delle tabelle: `read_file_content`; binario solo se gialla e azzurra non si distinguono (R2).
+2. Modulo e tabelle: prima `<nome>_testo.txt` se c'è (R2: già estratto dallo scaricamento, nessuna decodifica), altrimenti il Word con `read_file_content`; binario solo se il testo manca o gialla e azzurra non si distinguono (R2).
 3. **Il foglio non si legge.** Target, codici, CFU previsti e celle scrivibili sono in `whitelist.json` (template fisso; copia nuova = vuota). Si legge dal foglio solo ciò che ha scritto l'operatore: la colonna A di `CFU_per_CV` (secondo giro CV, `get_values` su `CFU_per_CV!A2:A`). Per una revisione di una pratica già scritta si svuotano gli intervalli della whitelist nella stessa scrittura (`scrittura.md`).
 4. `pratica.json`: `idPratica` e `provenienza` (`cfu@` / `presidenza.ingegneria@`) per il Registro e per l'eventuale mail F0 (va alla segreteria di provenienza, "rispondi a tutti").
 5. Lavora sui dati con script Python nel workspace (pulizia R3, somme, controlli): meno testo a mano, meno errori.
@@ -47,24 +47,24 @@ Stesso **merito** del riconoscimento interattivo, metodo diverso: **niente brows
 1. **Preparazione:** righe pulite per `trash` (+ `righeExtra` per gli esami inclusi da altri allegati), `trashAzzurra`, `esami` (+ `cfuAssunti`).
 2. **Esami → target:** R5–R7 (base dati, livello, incrociato, ottimizzazione per target, gradi, tipi di target) e i controlli "prima di scrivere". Prepara la tabella `target | CFU | esami usati | grado | voto risultante | motivazione`.
    - **Interattiva:** fermata **F1** *dopo* la scrittura: la tabella è già nel foglio; l'operatore la corregge nel file o in chat (§6bis).
-3. **Riconoscimento incrociato:** se applicato, verifica dell'invariante per indirizzo e nota standard (R5).
-4. **CV (R8):** proposte nel blocco `cfuPerCV` con la **colonna A già compilata** con i CFU proposti (numero = colonna F) e gli stessi CFU **applicati subito** nella riga CV `Input!Q41:CB41`, nella stessa scrittura. L'operatore può cambiare la colonna A (numero, `sì`, `no`/`0`) dopo la scrittura (§6bis).
+3. **Riconoscimento incrociato:** se applicato (`regole-casi.md`), verifica dell'invariante per indirizzo e nota standard (R5).
+4. **CV (R8, in `regole-casi.md`):** proposte nel blocco `cfuPerCV` con la **colonna A già compilata** con i CFU proposti (numero = colonna F) e gli stessi CFU **applicati subito** nella riga CV `Input!Q41:CB41`, nella stessa scrittura. L'operatore può cambiare la colonna A (numero, `sì`, `no`/`0`) dopo la scrittura (§6bis).
 5. **Cover (R9):** livello dal modulo o dall'operatore; **indirizzi sempre tutti quelli del livello richiesto**, anche se lo studente ne indica uno solo: triennale → `tutteTri: true` + `C25:C28` tutte `TRUE`; magistrale → `tutteMag: true` + `C31:C33` tutte `TRUE` (singoli indirizzi solo su indicazione esplicita dell'operatore). Se lo studente ha solo una triennale, chiede la magistrale con debiti formativi e l'operatore ha autorizzato il riconoscimento **Triennale + Magistrale**: `tutteTri: true`, `tutteMag: true` **e `notaMag: true`** (nota `COVER_NOTA_MAG`, `Cover!C40`). Dichiaralo nel report. Con la magistrale nel riconoscimento la riga EsamiDaFare (`COVER_STATO_MAG`) è sempre evidenziata: `cover.statoMag: "✔"` con debiti (CFU da sostenere + scheda EsamiDaFare nel PDF), `"∅"` senza debiti (0 CFU, niente scheda).
-6. **Affidabilità (R10):** **solo se l'operatore la chiede** (rallenta la pratica). Righe CV in attesa = POSSIBILE. Se l'operatore dice di saltarla: si salta: il Registro non cambia.
+6. **Affidabilità (R10, in `regole-affidabilita.md`):** **solo se l'operatore la chiede** (rallenta la pratica). Righe CV in attesa = POSSIBILE. Se l'operatore dice di saltarla: si salta: il Registro non cambia.
 
 ## 5. Scrittura: un piano, una verifica, una scrittura (senza conferma preventiva)
 
 Procedura completa in `references/scrittura.md`. In breve:
 
 1. Componi il piano della fase (range + valori [+ sfondo] della whitelist, più, se serve, la riga del Registro: lo stato resta `in lavorazione` per tutto il riconoscimento, quindi di norma basta aggiornare Ultimo aggiornamento e Storia, es. `Rev 0 riconoscimento scritto 06/10 18:00`). Includi `esami` per il controllo delle somme.
-2. `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/verifica_scrittura.py piano.json`: **una** verifica di tutto (whitelist, colonne vietate, tipi, menu, somme di riga/colonna, CFU per indirizzo). Errori → correggi il piano.
+2. `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/verifica_scrittura.py piano.json --richieste richieste.json` (nel piano `"foglioVuoto": true` se il file di riconoscimento è una copia nuova del template: le richieste diventano molto più corte): **una** verifica di tutto (whitelist, colonne vietate, tipi, menu, somme di riga/colonna, CFU per indirizzo). Errori → correggi il piano.
 3. **Scrivi subito, senza chiedere il "sì"** (anche in interattiva): esami, matrice, `CFU_per_CV` con colonna A compilata, riga CV, Cover e Registro.
-4. **Una** chiamata Sheets per i valori (+ una per gli sfondi se servono) e una per il Registro. Confronta gli intervalli aggiornati restituiti con il riepilogo della verifica: nessuna rilettura del foglio.
+4. **Una** `update_spreadsheet` con l'array `riconoscimento` di `richieste.json` (valori, sfondi e la copia Trash → Input in un colpo) e **una** `update_values` per il Registro. Se è stato scelto **PDF subito**, la stessa scrittura del Registro mette `richiesto` nella colonna PDF. Confronta gli intervalli aggiornati restituiti con il riepilogo della verifica: nessuna rilettura del foglio.
 5. Connettore Sheets assente → ripiego JSON + menu Importa (`formato-json.md`).
 
 ## 6. Dopo la scrittura: fermata e domanda
 
-Subito dopo la scrittura mostra il riepilogo (tabella dei target, CFU da esami e da CV per indirizzo, ipotesi) e salva il report (§7), poi **fermati** con **una** `AskUserQuestion` (`header`: `Procedo?`): `Procedi (chiudi la pratica)` · `Ho modificato il file: rileggi e allinea` · `Correggo in chat`. Non passare a **cfu-express-chiudi** senza risposta.
+Subito dopo la scrittura mostra il riepilogo (tabella dei target, CFU da esami e da CV per indirizzo, ipotesi) e salva il report (§7). Con **PDF subito**: rileggi solo la cella PDF del Registro (dopo ~60 s dalla scrittura; il report si scrive nel frattempo) e mostra il link. Poi **fermati** con **una** `AskUserQuestion` (`header`: `Procedo?`): `Procedi (chiudi la pratica)` · `Ho modificato il file: rileggi e allinea` · `Correggo in chat`. Se l'operatore modifica il file, il PDF già prodotto va rigenerato in chiusura. Non passare a **cfu-express-chiudi** senza risposta.
 
 ## 6bis. Allineamento alle modifiche dell'operatore
 

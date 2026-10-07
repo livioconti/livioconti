@@ -5,7 +5,7 @@ description: "Controllo di affidabilità Express (AFFIDABILE / INCERTO / POSSIBI
 
 # cfu-express-affidabilita
 
-È un **test**, non un riconoscimento: non sposta, non aggiunge e non toglie CFU. Regole di merito: `references/regole.md` della skill **cfu-express-riconoscimento** (R7 gradi, R10 stati, R5 incrociato). Formato del JSON: `references/formato-json.md` della stessa skill.
+È un **test**, non un riconoscimento: non sposta, non aggiunge e non toglie CFU. Regole di merito: `references/regole-affidabilita.md` (R10 stati) e `references/regole.md` (R7 gradi, R5) della skill **cfu-express-riconoscimento**. Formato del JSON: `references/formato-json.md` della stessa skill.
 
 ## Passi
 

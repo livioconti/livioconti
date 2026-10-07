@@ -40,7 +40,7 @@ Se l'utente chiede di "registrare" o "censire" le pratiche in arrivo: è il rial
 1. Cartella `CFU_COGNOME_NOME` in CFU_GDrive (o `Revisione_NN` dentro quella esistente) — `create_file` con `mimeType` cartella. Se esiste già, usala.
 2. Copia del template nella cartella con titolo `Riconoscimento_CFU_Ingegneria Gestionale_COGNOME_NOME` (`copy_file`). Se un file con quel titolo è già nella cartella, usalo. Puoi lanciare `copy_file` e il passo 3 nello stesso turno.
 3. Allegati.
-   - **Già in cartella?** Confronta i nomi degli allegati della mail (connettore Gmail) con i file della cartella (esclusi foglio di riconoscimento, `*.json`, `*.md`, PDF del riconoscimento). Se ci sono tutti, **salta il browser**: è il caso normale con lo scaricamento automatico o con il pulsante "Salva allegati qui" del componente Gmail.
+   - **Già in cartella?** Confronta i nomi degli allegati della mail (connettore Gmail) con i file della cartella (esclusi foglio di riconoscimento, `*.json`, `*.md`, `*_testo.txt`, PDF del riconoscimento). Se ci sono tutti, **salta il browser**: è il caso normale con lo scaricamento automatico o con il pulsante "Salva allegati qui" del componente Gmail.
    - **Senza browser** (nessuna scheda Claude in Chrome) e allegati mancanti: dillo e chiedi all'operatore di premere **Salva allegati qui** nel pannello *Riconoscimento CFU* della mail (o di trascinarli nella cartella), poi ricontrolla. Non leggere allegati da altre parti.
    - **Con il browser** (unico uso in apertura): il connettore Gmail elenca gli allegati (`get_thread` in `PLAIN_TEXT`: nome, tipo, `attachmentId`) ma **non ha uno strumento per scaricarli**, quindi:
      - con il connettore Gmail leggi i **nomi** degli allegati (servono per la verifica);

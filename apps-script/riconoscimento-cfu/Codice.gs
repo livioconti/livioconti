@@ -71,6 +71,10 @@ const AUTO_MAX_MAIL = 10;           // per esecuzione; le altre al giro successi
 const AUTO_CREA_FOGLIO = true;      // crea il file di riconoscimento per le pratiche nuove
 const PROP_INIZIO = 'cfu_auto_inizio';
 const PROP_FATTO = 'cfu_fatto_';    // + id del messaggio: allegati già salvati
+// Per ogni modulo Word salvato (.doc con HTML interno o .docx) si scrive accanto
+// <nome>_testo.txt con il testo e le tabelle (colore di sfondo incluso): il plugin
+// cfu-express lo legge al posto del Word, che il connettore Drive spesso non legge.
+const SUFFISSO_TESTO = '_testo.txt';
 
 // ======================================================================
 // GMAIL
@@ -687,8 +691,132 @@ function salvaAllegatiIn_(dest, allegati) {
     if (dest.getFilesByName(nomeFile).hasNext()) { saltati++; return; }
     dest.createFile(a.copyBlob()).setName(nomeFile);
     salvati++;
+    scriviTestoModulo_(dest, a.copyBlob(), nomeFile);
   });
   return { salvati: salvati, saltati: saltati };
+}
+
+/**
+ * Da eseguire una volta dall'editor: crea <nome>_testo.txt per i moduli Word già
+ * salvati nelle cartelle CFU_* di CFU_GDrive (e nelle loro Revisione_NN).
+ */
+function creaTestiModuliEsistenti() {
+  let creati = 0;
+  const it = DriveApp.getFolderById(PARENT_FOLDER_ID).getFolders();
+  while (it.hasNext()) {
+    const pratica = it.next();
+    if (!/^CFU_/i.test(pratica.getName())) continue;
+    cartelleDellaPratica_(pratica).forEach(function (c) {
+      const files = c.getFiles();
+      while (files.hasNext()) {
+        const f = files.next();
+        if (scriviTestoModulo_(c, f.getBlob(), f.getName())) creati++;
+      }
+    });
+  }
+  console.log('Testi dei moduli creati: ' + creati);
+}
+
+/**
+ * Se il file è un Word con dentro HTML (i .doc dei moduli di richiesta sono zip con
+ * word/afchunk.htm) o un .docx, scrive <nome>_testo.txt nella stessa cartella.
+ * Un .doc binario vecchio stile non si legge: in quel caso non scrive nulla.
+ */
+function scriviTestoModulo_(dest, blob, nome) {
+  if (!/\.docx?$/i.test(nome)) return false;
+  const nomeTxt = nome.replace(/\.docx?$/i, '') + SUFFISSO_TESTO;
+  if (dest.getFilesByName(nomeTxt).hasNext()) return false;
+  let testo = '';
+  try {
+    const parti = {};
+    Utilities.unzip(blob.setContentType('application/zip')).forEach(function (p) { parti[p.getName()] = p; });
+    if (parti['word/afchunk.htm']) {
+      const grezzo = parti['word/afchunk.htm'];
+      const prova = grezzo.getDataAsString('windows-1252');
+      const utf8 = /charset\s*=\s*["']?utf-8/i.test(prova);
+      testo = testoDaHtml_(utf8 ? grezzo.getDataAsString('UTF-8') : prova);
+    } else if (parti['word/document.xml']) {
+      testo = testoDaDocx_(parti['word/document.xml'].getDataAsString('UTF-8'));
+    }
+  } catch (err) {
+    return false;
+  }
+  if (!testo) return false;
+  dest.createFile(nomeTxt, testo, MimeType.PLAIN_TEXT);
+  return true;
+}
+
+/** Testo dell'HTML di un modulo; le tabelle diventano righe "a | b | c" con il colore di sfondo. */
+function testoDaHtml_(h) {
+  h = h.replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, '');
+  let n = 0;
+  h = h.replace(/<table[\s\S]*?<\/table>/gi, function (t) {
+    n++;
+    const righe = (t.match(/<tr[\s\S]*?<\/tr>/gi) || []).map(function (r) {
+      return (r.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || []).map(function (c) {
+        return pulisciTesto_(c.replace(/<[^>]+>/g, ' '));
+      });
+    });
+    return tabellaTesto_(n, coloreSfondo_(t), righe);
+  });
+  return righeTesto_(decodificaHtml_(h.replace(/<(br|\/p|\/div|\/h\d|\/li)[^>]*>/gi, '\n').replace(/<[^>]+>/g, ' ')));
+}
+
+/** Testo del document.xml di un .docx, con le tabelle come in testoDaHtml_. */
+function testoDaDocx_(xml) {
+  const testoP = function (frammento) {
+    return (frammento.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || []).map(function (p) {
+      return (p.match(/<w:t(?: [^>]*)?>[^<]*<\/w:t>/g) || []).map(function (t) {
+        return t.replace(/<[^>]+>/g, '');
+      }).join('');
+    });
+  };
+  let n = 0;
+  const corpo = xml.replace(/<w:tbl>[\s\S]*?<\/w:tbl>/g, function (t) {
+    n++;
+    const fill = (t.match(/<w:shd [^>]*w:fill="([0-9A-Fa-f]{6})"/) || [])[1];
+    const righe = (t.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || []).map(function (r) {
+      return (r.match(/<w:tc>[\s\S]*?<\/w:tc>/g) || []).map(function (c) {
+        return pulisciTesto_(decodificaHtml_(testoP(c).join(' ')));
+      });
+    });
+    return '<w:p><w:t>' + tabellaTesto_(n, fill ? '#' + fill : '', righe).replace(/\n/g, '</w:t></w:p><w:p><w:t>') + '</w:t></w:p>';
+  });
+  return righeTesto_(decodificaHtml_(testoP(corpo).join('\n')));
+}
+
+function tabellaTesto_(n, colore, righe) {
+  // via le righe vuote e quelle dei moduli con il solo numero progressivo
+  const piene = righe.filter(function (r) {
+    const altre = r.slice(1).some(function (c) { return c; });
+    return altre || (r[0] && !/^\d+$/.test(r[0]));
+  });
+  return '\n[TABELLA ' + n + (colore ? ' · sfondo ' + colore.toLowerCase() : '') + ']\n' +
+    piene.map(function (r) { return r.join(' | '); }).join('\n') + '\n[FINE TABELLA ' + n + ']\n';
+}
+
+function coloreSfondo_(html) {
+  const m = html.match(/(?:bgcolor|background(?:-color)?)\s*[:=]\s*["']?#?([0-9A-Fa-f]{6})/i);
+  return m ? '#' + m[1] : '';
+}
+
+function pulisciTesto_(t) {
+  return decodificaHtml_(t).replace(/[\s\u00a0]+/g, ' ').trim();
+}
+
+function righeTesto_(t) {
+  return t.split('\n').map(function (r) { return r.replace(/[ \t\u00a0]+/g, ' ').trim(); })
+    .filter(function (r) { return r; }).join('\n');
+}
+
+function decodificaHtml_(t) {
+  const nomi = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", rsquo: '’', lsquo: '‘',
+    rdquo: '”', ldquo: '“', ndash: '–', mdash: '—', agrave: 'à', egrave: 'è', eacute: 'é', igrave: 'ì',
+    ograve: 'ò', ugrave: 'ù', Agrave: 'À', Egrave: 'È', Eacute: 'É', Igrave: 'Ì', Ograve: 'Ò', Ugrave: 'Ù' };
+  return String(t)
+    .replace(/&#x([0-9a-f]+);/gi, function (_, h) { return String.fromCharCode(parseInt(h, 16)); })
+    .replace(/&#(\d+);/g, function (_, d) { return String.fromCharCode(parseInt(d, 10)); })
+    .replace(/&([a-zA-Z]+);/g, function (m, k) { return nomi.hasOwnProperty(k) ? nomi[k] : m; });
 }
 
 /** Cartella della pratica e sue sottocartelle Revisione_NN. */

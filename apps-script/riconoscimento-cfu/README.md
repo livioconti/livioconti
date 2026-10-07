@@ -18,6 +18,10 @@ Lo scaricamento automatico è personale: lo attiva ogni utente per la propria ca
 - **Mail già salvate a mano** con il pulsante: non vengono salvate una seconda volta.
 - **Oggetti riconosciuti**: `Fwd: CFU NOME_COGNOME` e `Ingegneria Gestionale_Fwd: CFU NOME_COGNOME`, la variante delle mail della presidenza. Con un oggetto diverso la cartella si chiama `CFU_DA_SMISTARE_<oggetto>`.
 
+## Testo dei moduli (per il plugin cfu-express)
+
+Quando salva un allegato Word (`.doc` dei moduli di richiesta, `.docx`), lo script scrive accanto `<nome>_testo.txt` con anagrafica, richiesta e tabelle (`[TABELLA n · sfondo #ffff99]` = gialla, `#c6d9f1` = azzurra). Il plugin legge quel file invece di scaricare e decodificare il Word, che il connettore Drive spesso legge vuoto. Vale sia per lo scaricamento automatico sia per il pulsante. Per le pratiche già in CFU_GDrive: dall'editor esegui una volta `creaTestiModuliEsistenti`.
+
 ## Registro (`Registro pratiche CFU`)
 
 Lo script trova le colonne **per intestazione**, quindi puoi spostarle senza problemi; non rinominarle però. Lo script scrive solo:

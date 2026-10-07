@@ -28,7 +28,8 @@ Prima di qualunque decisione: se fra i file c'è il **modulo di richiesta compil
 
 ## R2. Estrazione delle tabelle (gialla e azzurra)
 
-- **Lettura veloce:** usa prima `read_file_content` (Drive) sul Word: dà il testo e le tabelle senza dover trascrivere file binari. Scarica il binario (`download_file_content` → .docx, `word/document.xml`) **solo** se dal testo non si distinguono con certezza le due tabelle: in quel caso i colori (`w:shd/@w:fill`) decidono quale è quale.
+- **Lettura più veloce: `<nome del Word>_testo.txt`.** Se nella cartella c'è (lo crea il componente Gmail *Riconoscimento CFU* quando salva gli allegati), leggi **quello** con `read_file_content`: contiene anagrafica, richiesta e tabelle come righe `a | b | c`, ciascuna aperta da `[TABELLA n · sfondo #ffff99]` (gialla) o `#c6d9f1` (azzurra). Niente download né decodifica.
+- **Lettura veloce:** altrimenti usa `read_file_content` (Drive) sul Word: dà il testo e le tabelle senza dover trascrivere file binari. Scarica il binario (`download_file_content` → .docx, `word/document.xml`) **solo** se dal testo non si distinguono con certezza le due tabelle: in quel caso i colori (`w:shd/@w:fill`) decidono quale è quale.
 - **Tabelle da estrarre:** quelle con intestazione `N. | Università | Facoltà | Corso di Laurea | Esame | Voto | Data | CFU | SSD`:
   - **gialla** (es. `FFFF99`): esami della carriera dichiarata — di norma la prima; **è l'unica base del riconoscimento**;
   - **azzurra** (es. `C6D9F1`): esami di corsi non conclusi / altre carriere — di norma la seconda; **solo riferimento**.
@@ -53,11 +54,7 @@ Prima di qualunque decisione: se fra i file c'è il **modulo di richiesta compil
 
 ### R3bis. Esami di vecchio ordinamento senza CFU
 
-- **Riconoscimento:** nel modulo di dichiarazione CFU e/o nella tabella gialla l'esame è indicato come vecchio ordinamento (`V.O.`, `VO`, `v.o.`, `vecchio ordinamento`, `ante 509`, `ord. previgente`; colonne Corso di Laurea, Esame, CFU o note) **e** la colonna CFU non contiene un numero (vuota, `VO`, `-`, `n.d.`…). Se il segnale è dubbio (es. solo un corso annuale senza dicitura V.O.), chiedilo come caso ambiguo.
-- **Avviso e scelta (prima di scrivere):** elenca questi esami in chat e, nella **stessa** `AskUserQuestion` dei casi ambigui (R3), chiedi quanti CFU assumere: `10 CFU per tutti (Consigliata)` oppure `Scelgo io` (valori nel campo Altro, es. `Analisi I=12; Fisica=9`). Non usare valori diversi da quelli confermati.
-- **`Trash`:** il campo CFU resta **esattamente come nel Word** (es. `VO`, vuoto): è il riferimento della dichiarazione.
-- **`Input`:** nella colonna CFU (8ª di `INPUT_ESAMI`) scrivi il valore scelto (10 o quello indicato), poi colora lo **sfondo** di quella sola cella in rosso **`#E06666`**: tonalità diversa dal rosso `#FF0000` (testo non valido) e dal rosa `#F4CCCC` delle regole condizionali del Voto, e dallo sfondo delle celle di testo. Nel JSON: indice della riga in `esami.cfuAssunti` (lo script colora la cella). Nella verifica della colonna H la somma include i CFU assunti.
-- Nel controllo di affidabilità queste righe sono al più INCERTO con motivazione "CFU assunti (V.O.)"; a fine riconoscimento ricorda in chat che i CFU assunti vanno confermati.
+→ **Solo se ci sono esami V.O. senza CFU:** leggi `regole-casi.md` § R3bis (proposta 10 CFU, cella rossa `#E06666`).
 
 **Controllo di regolarità** sul risultato (in memoria, non nel foglio): N. progressivo; B–E non vuote; voto 18–31 o giudizio; data valida; CFU > 0; SSD riconoscibile (anche `NN`, `PROFIN_S`); nessun campo slittato. Non inventare CFU o voti mancanti, **con una sola eccezione**: esame di vecchio ordinamento senza CFU (R3bis), con il valore confermato dall'utente. Refusi evidenti (es. `ingengneria`) si correggono solo se l'utente ha chiesto di "pulire"; altrimenti si segnalano. Casi **ambigui**: raccoglili tutti e chiedili **in una sola domanda** prima di scrivere; i casi deterministici correggili senza chiedere.
 
@@ -112,17 +109,7 @@ Prima di qualunque decisione: se fra i file c'è il **modulo di richiesta compil
 
 ### Riconoscimento incrociato fra carriere (A + B → C o D)
 
-Prima di applicarlo leggi `riconoscimento-incrociato.md` (stessa cartella) (ratio, verifica numerica, esempio, testo della nota).
-
-- **Quando:** in `INPUT_ESAMI` ci sono una triennale conclusa A (prova finale presente) **e** una magistrale/specialistica conclusa B. Con **solo A** gli esami di A **non** vanno sui target magistrali (divieto classico).
-- **Seconda triennale C:** si usano A e B senza vincoli ulteriori (abbreviazione di carriera).
-- **Seconda magistrale D:** un esame di A va su un target magistrale solo se:
-  1. vale l'invariante 180 + 120: per ogni indirizzo magistrale, (CFU di A + B) − (R_A + R_B) ≥ 180, dove R = CFU degli esami di A e B riconosciuti su quell'indirizzo (il CV escluso);
-  2. la base residua (esami non usati su D) soddisfa i requisiti curriculari di D, se noti;
-  3. il corso di D non presuppone già quella materia a livello triennale (se è il "seguito" dell'esame di A, al massimo grado B);
-  4. gradi, tetti e doppia valenza restano quelli del R6–R7; a parità di grado si preferiscono gli esami di B.
-- **Procedura:** lato triennale (C), dopo la matrice con gli esami di A fai una passata con gli esami di B sui target triennali vuoti o parziali. Lato magistrale (D), fai prima la matrice con i soli esami di B, poi una **passata incrociata** sugli esami di A per i target magistrali vuoti o parziali. Ri-ottimizza le coppie quando un esame di A libera un esame di B per un target più specifico (es. Ricerca Operativa I su Modellazione, Ricerca Operativa II su Ricerca operativa II), scegliendo la configurazione con più CFU per indirizzo.
-- **Obbligatorio, a fine riconoscimento (in chat, mai nel file):** la verifica dell'invariante per indirizzo e la **nota del riconoscimento incrociato** (testo standard, §6 del riferimento) come commento. La nota non va nella Cover: è la skill **cfu-express-chiudi** a proporla per la mail di accompagnamento.
+→ **Solo con una triennale conclusa A e una magistrale/specialistica conclusa B nella base dati:** leggi `regole-casi.md` § Riconoscimento incrociato e `riconoscimento-incrociato.md`. Con una sola carriera non serve.
 
 ## R6. Ottimizzazione — OBBLIGATORIO
 
@@ -153,6 +140,10 @@ Prima di applicarlo leggi `riconoscimento-incrociato.md` (stessa cartella) (rati
 
 a. Il voto non promuove di grado. b. Più contributi B solo se coprono componenti diverse. c. Se esiste un A si usa quello. d. **Saturazione per somma:** un target si può saturare anche **senza A**, se la somma di più contributi parziali (B da esami, B da CV accettato, o misti esami + CV) copre componenti **diverse** del target e ciascuno rispetta il tetto di 1/3: in quel caso il target è **chiuso** e le celle sono valutate come normali B (niente segnalazione di saturazione). Resta vietato saturare con **un solo** B/C o con più B sulla **stessa** componente (un 3/9 motivato vale più di un 9/9 indifendibile). e. Dichiara sempre il grado (per un B, la componente coperta). f. Test prima di saturare con un solo esame: "il docente del corso target direbbe che non c'è nulla da seguire?" Se no, è B.
 
+**Decisioni dell'operatore (precedenti vincolanti, prevalgono sui gradi generali):**
+- **Metodologia della ricerca sociale** (SPS/07, Scienze politiche/sociologia) → **Probabilità e Statistica: grado C** (0 CFU sul curricolare; solo target liberi). Pratica LATELLA_SONIA, 08/10/2026.
+- **Informatica di base svolta fuori da Ingegneria/Informatica** (es. "Informatica per la comunicazione", ING-INF/05, a Scienze politiche) → **Informatica: fino a 4/9 CFU**, oltre il tetto di 1/3 dei B; mai di più senza il programma del corso. Nella motivazione: "esame diverso, svolto in altra facoltà: programmazione non approfondita". Pratica LATELLA_SONIA, 21/09/2026.
+
 Esempi: Economia e Gestione delle Imprese Industriali → Organizzazione aziendale **A**; Economia Aziendale → Organizzazione aziendale **A**; **Sociologia Industriale → Organizzazione aziendale B** (max 3/9, solo con un A); Statistica I → Gestione della Qualità **B**; Ricerca Operativa → Modellazione dei sistemi produttivi e logistici **A**; Diritto delle Procedure Concorsuali → Diritto commerciale **A**; Matematica Finanziaria → Metodi Matematici per l'Ingegneria **B**; Storia Economica → Economia dell'innovazione **C**; Chimica → Chimica e Scienza dei Materiali **B** (manca scienza dei materiali). I gradi valgono anche per il CV.
 
 ### Regole per tipo di target
@@ -170,16 +161,7 @@ Chiudi con la tabella `target | CFU | esami usati | grado | voto risultante | mo
 
 ## R8. Riconoscimento da CV — foglio `CFU_per_CV`
 
-1. Leggi CV/certificazioni selezionati ed estrai evidenze concrete (ruoli, durata, mansioni, certificazioni). I diplomi (laurea, scuola superiore) non sono evidenze da CV.
-2. Leggi capienze: `INPUT_T_PREVISTI`, `INPUT_T_DA_ESAMI`, `INPUT_T_RIMANENTI`, `INPUT_RIEPILOGO`, limiti CV di `INPUT_INDIRIZZI` (48 tri, 24 mag).
-3. `CFU_per_CV` è **fisso** (fra `Input` e `Trash`): non crearlo, eliminarlo o rinominarlo, non riscriverne l'intestazione. Si scrive solo da **`A2`** (blocco `cfuPerCV` del JSON).
-4. Colonne (intestazione già in A1:I1, da verificare): **A** Accetto/rifiuto (in Express Claude la compila con i CFU proposti; l'utente può cambiarla: `sì`/`no`, oppure **un numero = accetto con quei CFU**, es. `2`, `0` = rifiuto) · **B** Livello (`Triennale` / `Magistrale`, dal codice del target) · **C** Colonna (colonna della matrice) · **D** Target · **E** Indirizzi (codice indirizzo del target, es. `123`, `4`, `57`) · **F** CFU proposti (numero) · **G** CFU target ancora da riconoscere (numero, = `INPUT_T_RIMANENTI` prima del CV: CFU previsti del corso target meno quelli già riconosciuti da esami; **non** sono i CFU dell'esame né dell'attività) · **H** Grado affidabilità riconoscimento (A/B/C) · **I** Evidenza dal CV (verificabile). Mai `"3 / 3"` in una cella.
-5. **Express:** scrivi le proposte con la colonna A già compilata (CFU proposti) e applica subito gli stessi CFU in `INPUT_CV_MATRICE`, senza chiedere. In chat, dopo la scrittura: proposta sintetica, effetto per indirizzo, voci scartate; poi **fermati** e chiedi se procedere: l'operatore può cambiare la colonna A nel file.
-6. I CFU applicati sono sempre quelli della colonna A (numero = quel valore; `sì` = colonna F; `no`/`0`/vuota = nessuno).
-7. Quando l'operatore risponde: rileggi `CFU_per_CV!A:F`, e se la colonna A è cambiata riscrivi `INPUT_CV_MATRICE` di conseguenza. `INPUT_CV_CFU` non si sovrascrive.
-8. Verifica `INPUT_RIEP_CV` entro i limiti, nessun "Errore", `INPUT_RIEP_RIMANENTI ≥ 0`. Dopo la prima scrittura non modificare più la colonna A (è dell'operatore) né svuotare il foglio.
-9. Avvisa prima che le colonne con CFU da CV mostrano "-" come voto (elenca i voti che si perderebbero).
-10. Gli esami della tabella azzurra **non** sono evidenze da CV: non usarli nemmeno qui.
+→ **Solo se fra i documenti ci sono CV, certificazioni o esperienze dichiarate e il passo CV è scelto:** leggi `regole-casi.md` § R8.
 
 ## R9. Cover — solo intervalli `COVER_*`
 
@@ -198,35 +180,9 @@ Chiudi con la tabella `target | CFU | esami usati | grado | voto risultante | mo
 
 Lo spunta "tutte" attiva il gruppo (trigger `onEdit`): verifica che risulti `TRUE`. Solo `TRUE`/`FALSE`, mai testo. Nessun autofit nei fogli Tri.*, Mag.*, EsamiDaFare, Cons. Se un nome manca, segnalalo.
 
-## R10. Controllo di affidabilità — regole
+## R10. Controllo di affidabilità
 
-**Foglio `Affidabilita_CFU`** (fisso, fra `CFU_per_CV` e `Input`; non crearlo, eliminarlo o rinominarlo). Intestazione già in A1:I1, da verificare (**la colonna Stato non esiste più**; intestazioni del 06/10/2026):
-
-| A | B | C | D | E | F | G | H | I |
-|---|---|---|---|---|---|---|---|---|
-| Riga | Livello | Colonna | Esame svolto / CV | Target | Grado affidabilità riconoscimento | CFU attribuiti | CFU potenziali | Motivazione |
-
-- **Riga** (numero) e **Colonna** (lettera) calcolate dagli intervalli denominati (R4). Riga CV = riga di `INPUT_CV_MATRICE`.
-- **Livello** = livello del target: `Triennale` o `Magistrale`, dal codice in `INPUT_TARGET_CODICI` (R4).
-- **Esame svolto / CV** = colonna E di `INPUT_ESAMI` (per la riga CV: `CV: <evidenza sintetica>`, dall'evidenza di `CFU_per_CV`). **Target** = nome in `INPUT_TARGET_NOMI`.
-- **Stato (senza colonna):** la valutazione AFFIDABILE / INCERTO / POSSIBILE si scrive come **prefisso della Motivazione**: `AFFIDABILE: …`, `INCERTO: …` (`INCERTO: ERRORE: …` per gli errori), `POSSIBILE: …` (`POSSIBILE: ATTRIBUZIONE MANCATA: …`). Le righe POSSIBILE si riconoscono anche dalla colonna CFU attribuiti vuota.
-- **Grado affidabilità riconoscimento — regola fissa:** il grado misura quanto il contenuto dell'esame (o dell'evidenza CV) copre il **programma** del target, quindi si scrive solo dove un programma c'è:
-  - **sempre A/B/C** sui target **curricolari** e su **Inglese Tecnico** (ha un contenuto preciso: la lingua);
-  - **mai A/B/C** sui target **senza programma** — Insegnamenti a scelta, Esami a scelta dello studente, Ulteriori Conoscenze, Altre conoscenze utili, **Tirocinio** —: qui si scrive **`Libero`** (il grado non si applica), sia per gli esami sia per il CV. Il prefisso di stato di queste righe dipende solo dalla coerenza della fonte (esame a voto numerico per i liberi; attività o esame coerente per gli altri).
-  - Il Grado riguarda la **coppia** esame → target, non l'esame: lo stesso esame può essere A su un target, B su un altro e `Libero` su un target senza programma.
-- **CFU attribuiti** = valore attuale della cella (vuoto per POSSIBILE); **CFU potenziali** solo per POSSIBILE.
-- **Motivazione** breve e verificabile; mai iniziare un testo con `=`, `+` o `-`.
-- Una riga per cella, ordinate per Riga e poi per colonna.
-
-**Stati:**
-- **AFFIDABILE** — grado A, livello corretto, provenienza propria o neutra, nessuna violazione strutturale; oppure target libero con esame a voto numerico; oppure Tirocinio / Ulteriori Conoscenze / Altre conoscenze utili / Inglese Tecnico con esito o esame coerente; CV solo se accettato in `CFU_per_CV` e di grado A (oppure `Libero` su un target senza programma, es. Tirocinio).
-- **INCERTO** — grado B o C; compatibilità decisa sul nome contro un SSD di altra area; provenienza lontana; dato insolito; esame di vecchio ordinamento con **CFU assunti** (cella CFU rossa `#E06666`; motivazione "CFU assunti (V.O.)"); cella coinvolta in una violazione strutturale ("Errore" nei controlli, colonna oltre `INPUT_T_PREVISTI`, target saturato da un solo B/C, A scartato per un grado inferiore); CV senza accettazione tracciata. Livello sbagliato (un esame di A su un target magistrale **non** è livello sbagliato se vale R5: in quel caso stato secondo il grado e, dopo il prefisso di stato, "Incrociato:"), esito non numerico su curricolare, CFU su Prova Finale o su "Altri esami" (999): INCERTO con motivazione **"INCERTO: ERRORE: …"**.
-- **POSSIBILE** (cella vuota) — coppia esame → target di grado A o B, livello compatibile, voto numerico se il target è curricolare, mai Prova Finale / 999 / grado C. Motivazione = vincolo che la tiene fuori ("esame esaurito su Meccatronica", "target saturo", "CV in attesa di conferma in CFU_per_CV"). **CFU potenziali** = min(CFU spendibili dell'esame per quell'indirizzo, tetto di grado, `INPUT_T_PREVISTI`). Se esame e target hanno entrambi ancora capienza: motivazione che inizia con **"ATTRIBUZIONE MANCATA:"** e i CFU applicabili subito (non applicarla).
-- Nel dubbio fra AFFIDABILE e INCERTO: INCERTO.
-
-**Verifica:** prima di scrivere il JSON, ogni cella con CFU > 0 ha esattamente una riga AFFIDABILE o INCERTO con "CFU attribuiti" uguale al valore della cella, e la somma dei CFU attribuiti = somma della matrice; ogni POSSIBILE punta a una cella vuota. Dopo: riga 1 intatta, dati dalla riga 2, nessun altro foglio cambiato.
-
-**In chat:** conteggio verde (AFFIDABILE) / grigio (INCERTO) / rosso (POSSIBILE); elenco degli INCERTO con il motivo (prima gli "ERRORE:"); elenco dei POSSIBILE con CFU potenziali (prima le "ATTRIBUZIONE MANCATA:"). I colori si vedono con **CFU → Affidabilità riconoscimento (mostra/nascondi)** (serve `Affidabilita.gs` v3).
+→ Solo su richiesta, nella skill **cfu-express-affidabilita**: regole in `regole-affidabilita.md`.
 
 ## R11. Divieti (merito)
 
