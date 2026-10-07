@@ -26,7 +26,7 @@ Stesso **merito** del riconoscimento interattivo, metodo diverso: **niente brows
 ## 2. Lettura (solo Drive, una volta)
 
 1. `search_files` nella cartella corrente (e nella principale, se è una revisione): classifica i file (modulo/tabelle esami, CV, certificazioni, `pratica.json`, JSON Express precedenti).
-2. Modulo e tabelle: prima `<nome>_testo.txt` se c'è (R2: già estratto dallo scaricamento, nessuna decodifica), altrimenti il Word con `read_file_content`; binario solo se il testo manca o gialla e azzurra non si distinguono (R2).
+2. Modulo e tabelle: prima `<nome>_testo.txt` se c'è (poi subito `controlla_tabelle.py`, R2bis) (R2: già estratto dallo scaricamento, nessuna decodifica), altrimenti il Word con `read_file_content`; binario solo se il testo manca o gialla e azzurra non si distinguono (R2).
 3. **Il foglio non si legge.** Target, codici, CFU previsti e celle scrivibili sono in `whitelist.json` (template fisso; copia nuova = vuota). Si legge dal foglio solo ciò che ha scritto l'operatore: la colonna A di `CFU_per_CV` (secondo giro CV, `get_values` su `CFU_per_CV!A2:A`). Per una revisione di una pratica già scritta si svuotano gli intervalli della whitelist nella stessa scrittura (`scrittura.md`).
 4. `pratica.json`: `idPratica` e `provenienza` (`cfu@` / `presidenza.ingegneria@`) per il Registro e per l'eventuale mail F0 (va alla segreteria di provenienza, "rispondi a tutti").
 5. Lavora sui dati con script Python nel workspace (pulizia R3, somme, controlli): meno testo a mano, meno errori.
@@ -44,7 +44,7 @@ Stesso **merito** del riconoscimento interattivo, metodo diverso: **niente brows
 
 ## 4. Decisioni (merito invariato)
 
-1. **Preparazione:** righe pulite per `trash` (+ `righeExtra` per gli esami inclusi da altri allegati), `trashAzzurra`, `esami` (+ `cfuAssunti`).
+1. **Preparazione:** da `controlla_tabelle.py` (R2bis): righe **grezze** per `trash` (+ `righeExtra` per gli esami inclusi da altri allegati) e `trashAzzurra`, righe **pulite** per `esami` (+ `cfuAssunti`). Con anomalie STRUTTURA: prima la verifica approfondita e la conferma dell'operatore.
 2. **Esami → target:** R5–R7 (base dati, livello, incrociato, ottimizzazione per target, gradi, tipi di target) e i controlli "prima di scrivere". Prepara la tabella `target | CFU | esami usati | grado | voto risultante | motivazione`.
    - **Interattiva:** fermata **F1** *dopo* la scrittura: la tabella è già nel foglio; l'operatore la corregge nel file o in chat (§6bis).
 3. **Riconoscimento incrociato:** se applicato (`regole-casi.md`), verifica dell'invariante per indirizzo e nota standard (R5).

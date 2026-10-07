@@ -179,19 +179,31 @@ def richieste(piano):
         vals = w.get("valori")
         if sh == "Trash" and vals:
             trash = (r1, c1, vals)
-        # Input = righe della gialla già scritte in Trash (stessi valori): si copiano da lì,
-        # così gli esami viaggiano una volta sola
-        if sh == "Input" and r1 >= 42 and c1 == 1 and vals and trash:
+        # Input = righe della gialla già in Trash. Trash ha i valori grezzi dello studente,
+        # Input quelli puliti (R3): si copiano i valori da Trash e si riscrivono solo le celle
+        # che la pulizia ha cambiato (es. "30 e lode" -> 31). Gli esami viaggiano una volta sola.
+        if sh == "Input" and r1 >= 42 and c1 == 1 and vals and trash and vuoto:
             tr1, tc1, tv = trash
-            for k in range(len(tv)):
-                if tv[k:k + len(vals)] == vals:
-                    req.append({"copyPaste": {
-                        "source": griglia("Trash", tr1 + k, tr1 + k + len(vals) - 1, tc1, tc1 + len(vals[0]) - 1),
-                        "destination": griglia(sh, r1, r2, c1, c2),
-                        "pasteType": "PASTE_VALUES"}})
-                    vals = None
-                    break
-            if vals is None:
+            meglio = None
+            for k in range(len(tv) - len(vals) + 1):
+                blocco = tv[k:k + len(vals)]
+                if any(len(x) != len(y) for x, y in zip(blocco, vals)): continue
+                uguali = sum(str(a) == str(b) for x, y in zip(blocco, vals) for a, b in zip(x, y))
+                if meglio is None or uguali > meglio[1]: meglio = (k, uguali, blocco)
+            celle = sum(len(x) for x in vals)
+            if meglio and meglio[1] * 2 >= celle:
+                k, _, blocco = meglio
+                req.append({"copyPaste": {
+                    "source": griglia("Trash", tr1 + k, tr1 + k + len(vals) - 1, tc1, tc1 + len(vals[0]) - 1),
+                    "destination": griglia(sh, r1, r2, c1, c2), "pasteType": "PASTE_VALUES"}})
+                # copia "numerica": i valori uguali come testo ma di tipo diverso si riscrivono
+                diversi = [[v if (str(v) != str(t) or type(v) != type(t)) else None for v, t in zip(y, x)]
+                           for x, y in zip(blocco, vals)]
+                for ri, row in enumerate(diversi):
+                    for ci, v in enumerate(row):
+                        if v is not None:
+                            req.append({"updateCells": {"range": griglia(sh, r1 + ri, r1 + ri, c1 + ci, c1 + ci),
+                                                        "rows": [{"values": [cella(v)]}], "fields": "userEnteredValue"}})
                 continue
         if w.get("sfondo"):
             req.append({"repeatCell": {"range": griglia(sh, r1, r2, c1, c2),

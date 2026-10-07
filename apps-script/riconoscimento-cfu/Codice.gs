@@ -752,12 +752,15 @@ function testoDaHtml_(h) {
   let n = 0;
   h = h.replace(/<table[\s\S]*?<\/table>/gi, function (t) {
     n++;
-    const righe = (t.match(/<tr[\s\S]*?<\/tr>/gi) || []).map(function (r) {
+    const unite = [];
+    const righe = (t.match(/<tr[\s\S]*?<\/tr>/gi) || []).map(function (r, k) {
       return (r.match(/<t[dh][\s\S]*?<\/t[dh]>/gi) || []).map(function (c) {
+        const sp = c.match(/^<t[dh][^>]*\b(colspan|rowspan)\s*=\s*["']?(\d+)/i);
+        if (sp && +sp[2] > 1) unite.push('esame ' + k + ' con celle unite (' + sp[1].toLowerCase() + '=' + sp[2] + ')');
         return pulisciTesto_(c.replace(/<[^>]+>/g, ' '));
       });
     });
-    return tabellaTesto_(n, coloreSfondo_(t), righe);
+    return tabellaTesto_(n, coloreSfondo_(t), righe, unite);
   });
   return righeTesto_(decodificaHtml_(h.replace(/<(br|\/p|\/div|\/h\d|\/li)[^>]*>/gi, '\n').replace(/<[^>]+>/g, ' ')));
 }
@@ -775,24 +778,28 @@ function testoDaDocx_(xml) {
   const corpo = xml.replace(/<w:tbl>[\s\S]*?<\/w:tbl>/g, function (t) {
     n++;
     const fill = (t.match(/<w:shd [^>]*w:fill="([0-9A-Fa-f]{6})"/) || [])[1];
-    const righe = (t.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || []).map(function (r) {
+    const unite = [];
+    const righe = (t.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || []).map(function (r, k) {
       return (r.match(/<w:tc>[\s\S]*?<\/w:tc>/g) || []).map(function (c) {
+        if (/<w:gridSpan w:val="([2-9]|\d\d)"|<w:vMerge/.test(c)) unite.push('esame ' + k + ' con celle unite');
         return pulisciTesto_(decodificaHtml_(testoP(c).join(' ')));
       });
     });
-    return '<w:p><w:t>' + tabellaTesto_(n, fill ? '#' + fill : '', righe).replace(/\n/g, '</w:t></w:p><w:p><w:t>') + '</w:t></w:p>';
+    return '<w:p><w:t>' + tabellaTesto_(n, fill ? '#' + fill : '', righe, unite).replace(/\n/g, '</w:t></w:p><w:p><w:t>') + '</w:t></w:p>';
   });
   return righeTesto_(decodificaHtml_(testoP(corpo).join('\n')));
 }
 
-function tabellaTesto_(n, colore, righe) {
+function tabellaTesto_(n, colore, righe, unite) {
   // via le righe vuote e quelle dei moduli con il solo numero progressivo
   const piene = righe.filter(function (r) {
     const altre = r.slice(1).some(function (c) { return c; });
     return altre || (r[0] && !/^\d+$/.test(r[0]));
   });
   return '\n[TABELLA ' + n + (colore ? ' · sfondo ' + colore.toLowerCase() : '') + ']\n' +
-    piene.map(function (r) { return r.join(' | '); }).join('\n') + '\n[FINE TABELLA ' + n + ']\n';
+    piene.map(function (r) { return r.join(' | '); }).join('\n') + '\n[FINE TABELLA ' + n + ']\n' +
+    (unite || []).filter(function (u, i, a) { return a.indexOf(u) === i; })
+      .map(function (u) { return '[ATTENZIONE TABELLA ' + n + ': ' + u + ']\n'; }).join('');
 }
 
 function coloreSfondo_(html) {

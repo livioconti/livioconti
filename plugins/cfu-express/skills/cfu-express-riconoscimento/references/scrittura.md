@@ -9,9 +9,9 @@ Solo queste celle. Tutto il resto del file e del Registro non si scrive mai. La 
 | Fase | Cosa | Dove | Come |
 |---|---|---|---|
 | Apertura | nome studente | `Cover!G19` | testo `COGNOME_NOME` |
-| Dati | tabella gialla | `Trash!A1:I` | valori + sfondo d'origine (es. `#FFFF99`) |
-| Dati | tabella azzurra | `Trash_tabella_azzurra!A1:I` | valori + sfondo d'origine |
-| Dati | esami (= gialla pulita) | `Input!A42:I` | valori |
+| Dati | tabella gialla | `Trash!A1:I` | valori **grezzi** (come scritti, riallineati alle 9 colonne) + sfondo d'origine (es. `#FFFF99`) |
+| Dati | tabella azzurra | `Trash_tabella_azzurra!A1:I` | valori grezzi + sfondo d'origine |
+| Dati | esami (= gialla pulita, R3) | `Input!A42:I` | valori puliti: lo script li copia da Trash e riscrive solo le celle cambiate dalla pulizia |
 | Dati | CFU assunti V.O. | `Input!H<riga>` | solo sfondo `#E06666` |
 | Esami | matrice | `Input!Q42:CB` | solo valori (la formattazione è già nel foglio); mai `BC`, `BD:BF`, `CB` |
 | CV | proposte | `CFU_per_CV!A2:I` | valori, colonna A **compilata con i CFU proposti** |

@@ -6,7 +6,7 @@ Queste sono le regole di merito del riconoscimento, identiche a quelle del plugi
 ## REGOLA FONDAMENTALE — solo la tabella gialla
 
 - **Il riconoscimento CFU (matrice, target, voti, Cover) si basa ESCLUSIVAMENTE sugli esami della tabella GIALLA del Word.**
-- La tabella gialla → `Trash` (riferimento) **e** blocco esami di `Input` (dati su cui si fa il riconoscimento).
+- La tabella gialla → `Trash` (riferimento, **valori grezzi come li ha scritti lo studente**) **e** blocco esami di `Input` (dati su cui si fa il riconoscimento, **valori puliti** R3).
 - La tabella **azzurra** → **solo** il foglio `Trash_tabella_azzurra`. **Mai** in `Input`, **mai** in `Trash`, **mai** usata per attribuire CFU, per calcolare voti o come candidata di un target, nemmeno per i target liberi o senza voto.
 - Se l'utente chiede esplicitamente di considerare anche un esame della tabella azzurra, fallo solo per quell'esame, dichiarandolo, e solo dopo averlo portato in Input su sua indicazione.
 - **Laurea dichiarata ma esami non nella gialla.** Se il modulo dichiara una laurea (conseguita o in corso) i cui esami **non** sono nella tabella gialla ma si trovano in un altro file allegato (certificato, autocertificazione, piano di studi), **segnalalo e chiedi** prima del riconoscimento, anche in modalità automatica: `Includi gli esami dal certificato` / `Solo tabella gialla`. Senza risposta esplicita vale la tabella gialla. Se l'operatore li include: puliti come la gialla, vanno **sia in `Trash` sia in `Input`**, in entrambi **subito sotto** le righe della gialla (numerazione progressiva). In `Trash` **senza sfondo e senza alcun formato**: così si distinguono dagli esami della gialla, che hanno lo sfondo d'origine. In `Input` solo valori, come sempre. Nel riepilogo e nel report scrivi la fonte ("righe N–M dal certificato …"). Con due titoli così completati valuta il riconoscimento incrociato (R5).
@@ -38,7 +38,19 @@ Prima di qualunque decisione: se fra i file c'è il **modulo di richiesta compil
 - **Annota il colore di sfondo di ciascuna tabella** (`w:shd/@w:fill` nel .docx, `bgcolor`/`background` nell'HTML di un .doc): serve solo per lo sfondo dei Trash. Per il resto lavori con **valori di testo**: bordi, font e a capo del Word non si riportano. Un campo su più paragrafi diventa una riga sola (SSD uniti con `, `; testi uniti con uno spazio).
 - **File .doc (vecchio formato):** `read_file_content` può tornare vuoto. Spesso il .doc è uno zip con `word/afchunk.htm` (HTML in **windows-1252**): scaricalo una volta, decodifica con `cp1252` e prendi le tabelle dall'HTML (il colore è in `bgcolor`).
 
-## R3. Pulizia (una sola volta, prima di scrivere; vale per entrambe le tabelle)
+### R2bis. Controllo della struttura (sempre, pochi secondi)
+
+Gli studenti compilano spesso male le tabelle: celle unite (università, facoltà e corso in una cella sola), celle divise, valori nella colonna sbagliata, righe vuote in mezzo. Copiata così, la tabella sarebbe sbagliata in Trash e in Input.
+
+1. **Sempre**, prima di qualunque decisione: `python3 -I ${CLAUDE_PLUGIN_ROOT}/scripts/controlla_tabelle.py <_testo.txt o afchunk.htm> --json tabelle.json`. Dà per la gialla e l'azzurra le righe **grezze** (per Trash), le righe **pulite** (per Input, R3) e le anomalie:
+   - **STRUTTURA** (celle unite o divise, numero di celle ≠ 9, valori slittati): **verifica approfondita**, solo in questo caso: rileggi la tabella dal Word (testo e, se serve, il binario: `colspan`/`rowspan` nell'HTML, `w:gridSpan`/`w:vMerge` nel .docx), ricostruisci le righe sulle 9 colonne (es. "Roma Tre - Ingegneria - Ing. Civile" → Università / Facoltà / Corso) e mostra all'operatore **solo le righe ricostruite** (originale → ricostruita) in **una** `AskUserQuestion` (`Confermo` / `Correggo io`). Se non si ricostruisce con certezza (dati mancanti o contraddittori) è una **F0** (fermata-chiarimenti). Nessuna scrittura prima della conferma.
+   - **DATO** (voto, data, CFU o SSD non riconoscibili, V.O. senza CFU, campi vuoti): casi ambigui di R3, nella stessa unica domanda.
+   - **NOTA** (normalizzazioni deterministiche: `30 e lode` → 31, `23/30` → 23, date, SSD, N.): nessuna domanda, si elencano nel report.
+2. Le righe ricostruite su indicazione dell'operatore restano **grezze** nei valori (in Trash si riallinea solo la struttura, non si cambiano i testi).
+
+## R3. Pulizia dei valori di Input (una sola volta, prima di scrivere)
+
+**Dove:** le regole di questa tabella si applicano **solo ai valori di `Input`**. `Trash` (e `Trash_tabella_azzurra`) conserva i **valori grezzi** dello studente (`30 e lode`, `23/30`, `12/02/19`, `MAT05` restano così), con l'unica eccezione degli spazi doppi e del riallineamento alle 9 colonne (R2bis). **Come:** le applica `controlla_tabelle.py` (righe `pulite`), in modo deterministico; Claude decide solo i casi DATO.
 
 | Caso | Valore pulito |
 |---|---|
@@ -56,7 +68,7 @@ Prima di qualunque decisione: se fra i file c'è il **modulo di richiesta compil
 
 → **Solo se ci sono esami V.O. senza CFU:** leggi `regole-casi.md` § R3bis (proposta 10 CFU, cella rossa `#E06666`).
 
-**Controllo di regolarità** sul risultato (in memoria, non nel foglio): N. progressivo; B–E non vuote; voto 18–31 o giudizio; data valida; CFU > 0; SSD riconoscibile (anche `NN`, `PROFIN_S`); nessun campo slittato. Non inventare CFU o voti mancanti, **con una sola eccezione**: esame di vecchio ordinamento senza CFU (R3bis), con il valore confermato dall'utente. Refusi evidenti (es. `ingengneria`) si correggono solo se l'utente ha chiesto di "pulire"; altrimenti si segnalano. Casi **ambigui**: raccoglili tutti e chiedili **in una sola domanda** prima di scrivere; i casi deterministici correggili senza chiedere.
+**Controllo di regolarità** sul risultato (lo fa `controlla_tabelle.py`, R2bis): N. progressivo; B–E non vuote; voto 18–31 o giudizio; data valida; CFU > 0; SSD riconoscibile (anche `NN`, `PROFIN_S`); nessun campo slittato. Non inventare CFU o voti mancanti, **con una sola eccezione**: esame di vecchio ordinamento senza CFU (R3bis), con il valore confermato dall'utente. Refusi evidenti (es. `ingengneria`) si correggono solo se l'utente ha chiesto di "pulire"; altrimenti si segnalano. Casi **ambigui**: raccoglili tutti e chiedili **in una sola domanda** prima di scrivere; i casi deterministici correggili senza chiedere.
 
 ## R4. Foglio Input: intervalli denominati, righe 24–26, codici indirizzo
 
