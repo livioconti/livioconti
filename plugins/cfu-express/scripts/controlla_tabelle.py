@@ -103,6 +103,7 @@ def data_pulita(v):
 
 def ssd_pulito(v):
     s = pulisci_spazi(v).upper().replace(";", ",")
+    s = re.sub(r"(/\d{2})(?=[A-Z])", r"\1 ", s)            # CHIM/01CHIM/01 -> CHIM/01 CHIM/01
     parti = [p.strip() for p in re.split(r"[,\s]+(?=[A-Z])", s) if p.strip()]
     out = []
     for p in parti:
@@ -110,7 +111,10 @@ def ssd_pulito(v):
         if not "/" in q:
             m = re.match(r"^([A-Z\-]+?)-?(\d{2})$", q)   # ICAR21 -> ICAR/21
             if m: q = f"{m.group(1)}/{m.group(2)}"
-        out.append(q)
+        if q.endswith("/") and any(x.startswith(q) for x in parti if x != p):
+            continue                                       # "CHIM/" accanto a "CHIM/01": frammento
+        if q not in out:                                   # SSD ripetuti: una volta sola
+            out.append(q)
     nuovo = ", ".join(out)
     ok = all(SSD.match(p) or p in SSD_SPECIALI for p in out) if out else False
     nota = None if nuovo == pulisci_spazi(v) else f"SSD '{pulisci_spazi(v)}' → {nuovo}"

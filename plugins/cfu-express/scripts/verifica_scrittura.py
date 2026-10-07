@@ -182,6 +182,15 @@ def cella(v):
     if isinstance(v, (int, float)): return {"userEnteredValue": {"numberValue": v}}
     return {"userEnteredValue": {"stringValue": str(v)}}
 
+def tipizza(v):
+    """Come farebbe Sheets incollando il testo: "21" -> 21, "4,5" -> 4.5 (le date restano testo).
+    Serve a Trash, che riceve i valori grezzi come stringhe: senza, ogni numero diverso solo
+    di tipo da Input diventerebbe una cella da riscrivere dopo la copia."""
+    if isinstance(v, str) and re.fullmatch(r"\d{1,6}([.,]\d+)?", v.strip()):
+        x = float(v.strip().replace(",", "."))
+        return int(x) if x.is_integer() else x
+    return v
+
 def rgb(h):
     h = h.lstrip("#"); return {"red": int(h[0:2], 16) / 255, "green": int(h[2:4], 16) / 255, "blue": int(h[4:6], 16) / 255}
 
@@ -204,6 +213,7 @@ def richieste(piano):
         sh, c1, r1, c2, r2 = parse(w["range"])
         vals = w.get("valori")
         if sh == "Trash" and vals:
+            vals = [[tipizza(v) for v in row] for row in vals]
             trash = (r1, c1, vals)
         # Input = righe della gialla già in Trash. Trash ha i valori grezzi dello studente,
         # Input quelli puliti (R3): si copiano i valori da Trash e si riscrivono solo le celle
