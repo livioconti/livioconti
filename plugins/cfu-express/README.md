@@ -1,4 +1,4 @@
-# CFU Express – UNINETTUNO (plugin 1.9.2)
+# CFU Express – UNINETTUNO (plugin 1.10.0)
 
 Plugin **alternativo e distinto** da `riconoscimento-cfu-uninettuno` (il plugin interattivo). Stesso **merito** del riconoscimento (regole in `skills/cfu-express-riconoscimento/references/regole.md`, identiche a quelle del plugin interattivo); cambia il metodo: **nessuna lettura o scrittura del foglio tramite browser.**
 
@@ -17,6 +17,10 @@ Due modi, stesso flusso:
 - **Senza mail né browser**, da una chat qualsiasi con i connettori Drive, Sheets e Gmail: "riconoscimento express di Fantozzi", "express della pratica CFU-2026-011" o "riconoscimento express" + link della cartella in CFU_GDrive. Claude trova la pratica nel Registro (nome in qualsiasi ordine, anche solo il cognome), poi in CFU_GDrive, poi in Gmail; con più candidati chiede quale.
 
 Se la pratica non è ancora aperta, prima la apre (cfu-express-apri) **riusando** cartella, file e allegati già creati dallo scaricamento automatico o dal pulsante "Salva allegati qui" del componente Gmail *Riconoscimento CFU*. Il browser serve solo se mancano gli allegati in cartella (un clic su "Aggiungi tutti a Drive") e per allegare il PDF alla bozza; senza browser Claude chiede di premere "Salva allegati qui" e prepara la bozza senza allegato.
+
+## Con o senza check point
+
+"Fai l'express di Rossi **con check point**" (consigliato) oppure "**senza check point**". Con check point Claude si ferma quando c'è qualcosa da decidere: CP1 modulo e dati (anomalie → mail di chiarimenti alla segreteria), CP2 controllo del riconoscimento di esami e CV, CP5 controllo del PDF prima della bozza. Senza check point arriva fino alla bozza e mette tutti i dubbi nel riepilogo finale. CP3–CP4 (sempre, alla ripresa): se l'operatore ha cambiato Input, `CFU_per_CV` e `Affidabilita_CFU` vengono riallineati (`scripts/riallinea.py`, fotografia `cfu_express_stato.json`). In nessun caso una mail parte senza l'ok dell'operatore. Dettagli: `skills/cfu-express-riconoscimento/references/checkpoint.md`.
 
 ## Come funziona
 
@@ -62,6 +66,7 @@ I due plugin possono stare entrambi installati: le skill Express si attivano con
 
 | Plugin | Data | Novità |
 |---|---|---|
+| 1.10.0 | 08/10/2026 | **Check point**: express con o senza check point (CP1 modulo e dati con mail alla segreteria, CP2 controllo del riconoscimento, CP3–CP4 riallineamento, CP5 controllo del PDF); `scripts/riallinea.py` aggiorna `CFU_per_CV` (colonna A, righe nuove, colonna G) e `Affidabilita_CFU` alle modifiche dell'operatore in Input, o la riga CV di Input se l'operatore ha cambiato solo la colonna A; `verifica_scrittura.py --stato` salva la fotografia `cfu_express_stato.json`; la copia Trash → Input si usa solo con tabelle senza anomalie di struttura (`"tabelleOk": true`) e il risultato in Input è identico alla scrittura diretta |
 | 1.9.2 | 08/10/2026 | Tolte le due "decisioni dell'operatore" aggiunte in R7 nella 1.9.0 (ricavate da Claude dalla pratica LATELLA, non dettate dall'operatore): il merito del riconoscimento è di nuovo identico alla 1.7.0 |
 | 1.9.1 | 08/10/2026 | **Trash grezzo, Input pulito** reso esplicito (Trash conserva `30 e lode`, `23/30`…; prima la skill diceva "righe pulite per trash"); nuovo `scripts/controlla_tabelle.py` (R2bis), sempre: righe grezze per Trash, righe pulite R3 per Input, anomalie STRUTTURA (celle unite/divise, colonne slittate → verifica approfondita e conferma dell'operatore), DATO (casi ambigui) e NOTA (normalizzazioni); il testo dei moduli segnala le celle unite; `verifica_scrittura.py` copia gli esami da Trash e riscrive solo le celle cambiate dalla pulizia |
 | 1.9.0 | 08/10/2026 | Più veloce: modulo letto da `<nome>_testo.txt` creato dal componente Gmail allo scaricamento (niente download e decodifica del .doc); regole divise in `regole.md` (casi frequenti, 24 KB invece di 33) + `regole-casi.md` (V.O., incrociato, CV) + `regole-affidabilita.md`, lette solo se servono; `verifica_scrittura.py` produce richieste compatte (sfondo con una `repeatCell`, esami copiati da Trash a Input con `copyPaste`, `foglioVuoto` per le copie nuove: 27 → 10 KB); passo **PDF subito** in automatica (PDF chiesto nella stessa scrittura del Registro, chiusura che lo riusa) |

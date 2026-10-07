@@ -1,6 +1,6 @@
 # Fermata F0 — chiarimenti alla segreteria (dopo la lettura)
 
-Si applica **subito dopo la lettura** dei dati (modulo di richiesta, tabelle, altri allegati, CV) e **prima** di scrivere qualunque cosa nel foglio. Vale in **tutte le modalità**, anche in quella automatica: un dato che non torna non si trasforma in ipotesi se cambia il riconoscimento.
+Si applica **subito dopo la lettura** dei dati (modulo di richiesta, tabelle, altri allegati, CV) e **prima** di scrivere qualunque cosa nel foglio. È il check point **CP1** (`checkpoint.md`). **Con check point** ci si ferma: un dato che non torna non si trasforma in ipotesi se cambia il riconoscimento. **Senza check point** (scelta esplicita dell'operatore) non ci si ferma: il riconoscimento si fa sulle ipotesi più prudenti, dichiarate, ma in chiusura si prepara **solo la bozza di chiarimenti** (mai quella con il PDF) e il riepilogo finale lo dice in testa.
 
 ## 1. Controllo di coerenza (dopo la lettura)
 

@@ -1,7 +1,7 @@
 {
   "name": "cfu-express",
-  "version": "1.9.2",
-  "description": "Riconoscimento CFU Express per Ingegneria Gestionale UNINETTUNO: stesse regole del riconoscimento interattivo; lettura dei soli documenti dello studente e scrittura diretta nel foglio col connettore Google Sheets, solo nelle celle della whitelist, con una verifica unica del piano prima di scrivere. Modalità automatica o interattiva. La pratica si indica con la mail aperta oppure, senza mail né browser, con nome e/o cognome, ID o link della cartella.",
+  "version": "1.10.0",
+  "description": "Riconoscimento CFU Express per Ingegneria Gestionale UNINETTUNO: stesse regole del riconoscimento interattivo; lettura dei soli documenti dello studente e scrittura diretta nel foglio col connettore Google Sheets, solo nelle celle della whitelist, con una verifica unica del piano prima di scrivere. Express con o senza check point (CP1 modulo e dati, CP2 riconoscimento, CP3–CP4 riallineamento di CFU_per_CV e Affidabilita_CFU alle modifiche dell'operatore, CP5 PDF). La pratica si indica con la mail aperta oppure, senza mail né browser, con nome e/o cognome, ID o link della cartella.",
   "author": {
     "name": "Ingegneria Gestionale UNINETTUNO"
   },

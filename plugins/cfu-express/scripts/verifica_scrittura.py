@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verifica UNICA del piano di scrittura (plugin cfu-express) prima di inviarlo al foglio.
 
-Uso:  python3 -I verifica_scrittura.py piano.json [--richieste out.json]
+Uso:  python3 -I verifica_scrittura.py piano.json [--richieste out.json] [--stato stato.json]
       Con --richieste scrive anche le richieste pronte per il connettore Google Sheets:
       out.json = {"riconoscimento": [...requests per update_spreadsheet...], "registro": {"range": ..., "values": ...}}
 
@@ -12,7 +12,8 @@ piano.json:
                "riga": 7, "nuova": false,
                "campi": {"Stato": "in lavorazione", "Ultimo aggiornamento": "...", ...}},
   "esami": [[1, "Univ", "Fac", "Corso", "Esame", 28, "gg/mm/aaaa", 6, "SSD"], ...],  # facoltativo: righe di Input
-  "foglioVuoto": true   # pratica nuova: si inviano solo le celle piene (richieste molto più corte)
+  "foglioVuoto": true,  # pratica nuova: si inviano solo le celle piene (richieste molto più corte)
+  "tabelleOk": true     # controlla_tabelle.py senza anomalie STRUTTURA: Input copiato da Trash + celle cambiate
 }
 
 Controlla, tutto in una volta:
@@ -140,6 +141,10 @@ def main():
 
     if err:
         print("ERRORI (niente è stato scritto):"); [print(" -", e) for e in err]; sys.exit(1)
+    if "--stato" in sys.argv:
+        out = sys.argv[sys.argv.index("--stato") + 1]
+        json.dump(stato(piano), open(out, "w", encoding="utf-8"), ensure_ascii=False)
+        riepilogo.append(f"fotografia per il riallineamento in {out} (salvala come cfu_express_stato.json nella cartella)")
     if "--richieste" in sys.argv:
         out = sys.argv[sys.argv.index("--richieste") + 1]
         json.dump(richieste(piano), open(out, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
@@ -149,6 +154,27 @@ def main():
     if matrice:
         tot = {ind: sum(v for (r, c), v in matrice.items() if TARGET[c]["codice"] in cod) for ind, cod in INDIRIZZI.items()}
         print("  CFU da esami per indirizzo (1,2,3,8,5,6,7):", [tot[k] for k in (1, 2, 3, 8, 5, 6, 7)])
+
+def stato(piano):
+    """Fotografia di ciò che Claude scrive (matrice, riga CV, CFU_per_CV): riallinea.py la confronta
+    con il foglio alla ripresa per capire cosa ha cambiato l'operatore."""
+    m, cv, cpcv = {}, {}, None
+    for w in piano.get("riconoscimento", []):
+        sh, c1, r1, c2, r2 = parse(w["range"])
+        vals = w.get("valori")
+        if vals is None: continue
+        if sh == "Input" and c1 >= col2n("Q") and r1 >= 41:
+            for ri, row in enumerate(vals):
+                for ci, v in enumerate(row):
+                    col, r = n2col(c1 + ci), r1 + ri
+                    if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0 and col in TARGET:
+                        if r == 41: cv[col] = v
+                        else: m[f"{r}|{col}"] = v
+        if sh == "CFU_per_CV":
+            cpcv = [r for r in vals if any(str(x).strip() for x in r)]
+    out = {"matrice": m, "cv": cv}
+    if cpcv is not None: out["cfuPerCV"] = cpcv
+    return out
 
 def cella(v):
     if v is None or v == "": return {}
@@ -182,7 +208,9 @@ def richieste(piano):
         # Input = righe della gialla già in Trash. Trash ha i valori grezzi dello studente,
         # Input quelli puliti (R3): si copiano i valori da Trash e si riscrivono solo le celle
         # che la pulizia ha cambiato (es. "30 e lode" -> 31). Gli esami viaggiano una volta sola.
-        if sh == "Input" and r1 >= 42 and c1 == 1 and vals and trash and vuoto:
+        # Solo con tabelle senza anomalie di struttura ("tabelleOk": true, esito OK di controlla_tabelle.py):
+        # con celle unite/slittate Input si scrive direttamente, mai partendo da una copia.
+        if sh == "Input" and r1 >= 42 and c1 == 1 and vals and trash and vuoto and piano.get("tabelleOk"):
             tr1, tc1, tv = trash
             meglio = None
             for k in range(len(tv) - len(vals) + 1):

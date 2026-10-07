@@ -11,7 +11,8 @@ Regole comuni, Registro e stati: `references/processo.md` della skill **cfu-expr
 
 - **Individua la pratica** come in `references/processo.md` § *Individuare la pratica*: va bene la mail aperta, il nome/cognome, l'ID o il link della cartella. Senza mail aperta il thread a cui rispondere è quello di `pratica.json` / colonna `Mail (messageId)`.
 - Leggi `pratica.json` (o `mail_riconoscimento.json` per le pratiche vecchie) nella cartella: `idPratica`, `provenienza`, `gmailMessageId`, `gmailThreadId`, studente, ID del file di riconoscimento. Se `provenienza` manca, leggila dalla colonna Provenienza del Registro (o dal mittente del messaggio di richiesta).
-- **Riallineamento** (processo.md) e lettura della riga dello studente. Se lo stato è `inviata` o `annullata`, dillo e chiedi se procedere comunque (es. reinvio). Nessun altro blocco: se l'operatore chiede di chiudere, si chiude.
+- **Riallineamento** (processo.md) e lettura della riga dello studente. Poi **riallineamento del file alle modifiche dell'operatore** (CP3 + CP4, `references/checkpoint.md` della skill cfu-express-riconoscimento): se `CFU_per_CV` o `Affidabilita_CFU` cambiano, il PDF già prodotto non vale più e va rigenerato.
+- **Modalità**: quella scelta per la pratica (con o senza check point, `checkpoint.md`); se non è nota, chiedila una volta. Se lo stato è `inviata` o `annullata`, dillo e chiedi se procedere comunque (es. reinvio). Nessun altro blocco: se l'operatore chiede di chiudere, si chiude.
 
 ## 1. Cover e PDF
 
@@ -20,6 +21,7 @@ Regole comuni, Registro e stati: `references/processo.md` della skill **cfu-expr
    PDF **a file chiuso**: scrivi `richiesto` nella colonna **PDF** del Registro (una `update_values` sulla cella PDF della riga). Lo script *PDF dal Registro* (`scripts/PdfRegistro.gs`, installato una volta nel Registro) entro un minuto esporta il PDF con la stessa logica del menu (Cover + fogli delle righe spuntate, A4 orizzontale, nella cartella della pratica) e scrive nella cella `fatto <data> · <fogli> · <link>` o `errore: …`. Dopo ~60 s leggi **solo quella cella** (`get_values`); se non è ancora `fatto`, riprova una volta dopo 30 s. Controlla che l'elenco dei fogli sia quello atteso dalla Cover (es. con la magistrale e debiti: EsamiDaFare presente).
    Ripiego (script non installato o `errore`): **CFU → Esporta pratica in PDF** nel foglio, dall'operatore o dal browser.
 3. Nessun download del PDF per controllarlo: l'elenco dei fogli nella cella del Registro basta.
+4. **CP5** (`checkpoint.md`): **con check point** mostra il link al PDF e i fogli inclusi e chiedi `PDF corretto: prepara la bozza` · `Ho modificato il file: rigenera il PDF` (riallineamento CP3–CP4, poi nuovo PDF) · `Mi fermo qui`. **Senza check point** prosegui con la bozza (o, con una F0 aperta, solo con la bozza di chiarimenti).
 
 ## 2. Bozza di risposta (autorizzazione: invio)
 
@@ -36,7 +38,7 @@ Regole comuni, Registro e stati: `references/processo.md` della skill **cfu-expr
    - **Connettore Gmail** (`create_draft` con `replyToMessageId`, destinatari espliciti e `attachments` base64) solo se il PDF è piccolo e il browser non è disponibile.
    - In ultima istanza (anche quando si lavora senza Claude in Chrome): bozza senza allegato con il link al PDF in Drive nel messaggio in chat (non nella mail) + chiedi all'utente di allegare il PDF dalla cartella prima di inviare.
 4. Mostra in chat: destinatari, oggetto, testo, nome e dimensione dell'allegato.
-5. **Fermati.** Si invia solo dopo un ok esplicito dell'utente in chat riferito a questa bozza (oppure lo invia lui da Gmail).
+5. **Fermati**, anche senza check point. Si invia solo dopo un ok esplicito dell'utente in chat riferito a questa bozza (oppure lo invia lui da Gmail).
 
 ## 3. Invio e Registro
 
